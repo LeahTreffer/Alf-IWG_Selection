@@ -52,7 +52,7 @@ Main effects:
 Entry: differences between entries in intercrop, relative to the reference Entry (IWAF_H_MN1) in intercrop
 treatment: change going from intercrop to monoculture 
 interaction: do entries respond differently to monoculture than they do in intercrop
-
+   
 # Fall Stand Count
 ```{r Fstandcount}
 mix.model <- lmer(Fall.Alfalfa.Stand.Count ~ Entry * treatment + (1 | Block), data = data)
