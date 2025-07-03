@@ -5,11 +5,15 @@
 
 library(ggplot2)
 library(multcompView)
+library(lmerTest)
 library(lme4)
 library("PerformanceAnalytics")
 library(dplyr)
 library(psych)
 library(readxl) 
+library(emmeans)
+library(multcompView)
+library(multcomp)
 
 #data <- read.csv("Data/partial data files/Fieldbook/2024-09-26-03-48-01_2024_NYMG2_Alf-IWG_table.csv")
 data <- read.csv("NewYork/data/2024-2025 NY MG2.csv")
@@ -43,6 +47,8 @@ data$Entry <- gsub(" #", "", data$Entry)
 intercrop_data <- subset(data, treatment == 'intercrop')
 monoculture_data <- subset(data, treatment == 'monoculture')
 
+mono_entries <- unique(monoculture_data$Entry)
+mono_entry_data <- subset(data, Entry %in% mono_entries)
 
 hist(data$Fall.Alfalfa.Stand.Count, breaks = 20)
 hist(data$Fall.Alfalfa.Height, breaks = 20)
@@ -76,7 +82,7 @@ chart.Correlation(data[,c("Alfalfa.Stand.Count", "IWG.Stand.Count")], histogram=
 # histogram of alfalfa stand count in intercrop and alfalfa stand count in monoculture 
 # visualize if data is normal
 # visualize if x axis for the two are significantly different (there are much fewer mono plots so frequency (y axis) will be lower, but if they don't overlap along the x-axis this indicates stand count in mono is different than stand count of intercroped)
-ggplot(data, aes(x = Alfalfa.Stand.Count, fill = treatment)) +
+ggplot(data, aes(x = Fall.Alfalfa.Stand.Count, fill = treatment)) +
   geom_histogram(position = "identity", alpha = 0.5, binwidth = 1) +
   scale_fill_manual(values = c("blue", "red")) +  # Customize the colors if needed
   labs(title = "Alfalfa Stand Count Distribution by Treatment\n(number of individual plants per 0.5m length of plot)",
@@ -84,7 +90,7 @@ ggplot(data, aes(x = Alfalfa.Stand.Count, fill = treatment)) +
        y = "Frequency") +
   theme_minimal()
 
-ggplot(data, aes(x = IWG.Height, fill = treatment)) +
+ggplot(data, aes(x = Fall.IWG.Height, fill = treatment)) +
   geom_histogram(position = "identity", alpha = 0.5, binwidth = 0.25) +
   scale_fill_manual(values = c("blue", "red")) +  # Customize the colors if needed
   labs(title = "Neighbor Height Distribution by Treatment\n(number of individual plants per 0.5m length of plot)",
@@ -94,7 +100,7 @@ ggplot(data, aes(x = IWG.Height, fill = treatment)) +
 
 # box plot of each entry
 # visualize the value distribution for each entry, and if entry was in mono and intercrop, has that split as well
-p <- ggplot(data, aes(x = factor(Entry), y = Alfalfa.Stand.Count, fill = treatment)) +
+ggplot(data, aes(x = factor(Entry), y = Fall.Alfalfa.Stand.Count, fill = treatment)) +
   geom_boxplot(position = position_dodge(width = 0.8)) +
   scale_fill_manual(values = c("blue", "red")) +  # Customize colors
   labs(title = "Alfalfa Stand Count  Distribution by Entry and Treatment\n(number of individual plants per 0.5m length of plot)",
@@ -102,12 +108,12 @@ p <- ggplot(data, aes(x = factor(Entry), y = Alfalfa.Stand.Count, fill = treatme
        y = "Stand Count") +
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-p
+
 
 #reordered 
-data$Entry2 <- reorder(data$Entry, data$Alfalfa.Stand.Count, FUN = median, na.rm = TRUE)
+data$Entry2 <- reorder(data$Entry, data$Fall.Alfalfa.Stand.Count, FUN = median, na.rm = TRUE)
 # Plot
-q <- ggplot(data, aes(x = Entry2, y = Alfalfa.Stand.Count, fill = treatment)) +
+ggplot(data, aes(x = Entry2, y = Fall.Alfalfa.Stand.Count, fill = treatment)) +
   geom_boxplot(position = position_dodge(width = 0.8)) +
   scale_fill_manual(values = c("blue", "red")) +  # Customize colors
   labs(title = "Alfalfa Stand Count Distribution\n(number of individual plants per 0.5m length of plot)",
@@ -116,23 +122,55 @@ q <- ggplot(data, aes(x = Entry2, y = Alfalfa.Stand.Count, fill = treatment)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-q
+
+
+ggplot(data, aes(x = Entry2, y = Spring.Alfalfa.stand.count, fill = treatment)) +
+  geom_boxplot(position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = c("blue", "red")) +  # Customize colors
+  labs(title = "Alfalfa Stand Count Distribution\n(number of individual plants per 0.5m length of plot)",
+       x = "Entry",
+       y = "Stand Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
 
 # anova of alfalfa stand count
-model_alfstdc <- aov(Alfalfa.Stand.Count ~ Entry + Block + treatment, data)
-summary(model_alfstdc)
+#mix.lmer <- lmer(Fall.Alfalfa.Stand.Count ~ Entry2 + (1 | Block), data=intercrop_data)
+#summary(mix.lmer)
+#anova(mix.lmer)
 
-fit = lm(Alfalfa.Stand.Count ~ Entry + Block + treatment + Chalcids, data = data)
-fit
+#emm_treat <- emmeans(mix.lmer, ~ treatment)
+#pairs(emm_treat, adjust = "tukey")  # Tukey HSD
+lm_simple <- lm(Fall.Alfalfa.Stand.Count ~ Entry, data = intercrop_data)
+anova(lm_simple)
 
-mix.lmer <- lmer(Alfalfa.Stand.Count ~ treatment + Chalcids + Block + (1 | Entry) + (1 | Block), data=data)
-summary(mix.lmer)
+emm_entry <- emmeans(lm_simple, ~ Entry)
+pairs(emm_entry, adjust = "tukey")
+cld_entry <- cld(emm_entry, adjust = "tukey", Letters = letters)
 
+cld_df <- as.data.frame(cld_entry)
+cld_df$Entry2 <- reorder(cld_df$Entry, cld_df$emmean, FUN = median)
+levels(cld_df$Entry2) <- levels(data$Entry2)
+
+ggplot(intercrop_data, aes(x = Entry2, y = Fall.Alfalfa.Stand.Count)) +
+  geom_boxplot(position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = c("blue", "red")) +
+  labs(title = "Alfalfa Stand Count Distribution\n(number of individual plants per 0.5m length of plot)",
+       x = "Entry",
+       y = "Stand Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(data = cld_df,
+            aes(x = Entry2, y = emmean + 20, label = .group),  # adjust y position if needed
+            inherit.aes = FALSE,
+            size = 4,
+            vjust = 0)
 
 # Height 
 data$Entry3 <- reorder(data$Entry, data$Alfalfa.Height, FUN = median, na.rm = TRUE)
 # Plot
-r <- ggplot(data, aes(x = Entry3, y = Alfalfa.Height, fill = treatment)) +
+ggplot(data, aes(x = Entry3, y = Alfalfa.Height, fill = treatment)) +
   geom_boxplot(position = position_dodge(width = 0.8)) +
   scale_fill_manual(values = c("blue", "red")) +  # Customize colors
   labs(title = "Alfalfa Height Distribution\n(number of individual plants per 0.5m length of plot)",
@@ -141,4 +179,7 @@ r <- ggplot(data, aes(x = Entry3, y = Alfalfa.Height, fill = treatment)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-r
+
+
+
+

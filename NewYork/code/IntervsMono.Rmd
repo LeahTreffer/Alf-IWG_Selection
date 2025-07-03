@@ -1,0 +1,131 @@
+---
+title: "IntervsMono"
+output: html_document
+date: "2025-07-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r libraries}
+library(ggplot2)
+library(multcompView)
+library(lmerTest)
+library(lme4)
+library("PerformanceAnalytics")
+library(dplyr)
+library(psych)
+library(readxl) 
+library(emmeans)
+library(multcompView)
+library(multcomp)
+library(readr)
+```
+
+```{r}
+data <- read_csv("NewYork/data/early_life_intermono.csv")
+
+data$ENT <- as.factor(data$ENT)
+data$Entry <- as.factor(data$Entry)
+data$Block <- as.factor(data$Block)
+data$Serpentine <- as.character(data$Serpentine)
+data$treatment <- as.factor(data$treatment)
+data$`Seed/Plot g` <- as.numeric(data$`Seed/Plot g`)
+data$coated <- as.factor(data$coated)
+data$Chalcids <- as.factor(data$Chalcids)
+```
+
+```{r}
+# re-level the treatment for the models so that mono is the reference instead of intercrop
+# Compared to monoculture baseline to test whether intercrop improves performance relative to monoculture
+# check levels
+#levels(data$treatment) # first level is the current reference
+# re-level
+#data$treatment <- relevel(data$treatment, ref = "monoculture")
+```
+
+##  Are values in treatment (inter vs mono) different
+
+Main effects: 
+Entry: differences between entries in intercrop, relative to the reference Entry (IWAF_H_MN1) in intercrop
+treatment: change going from intercrop to monoculture 
+interaction: do entries respond differently to monoculture than they do in intercrop
+
+# Fall Stand Count
+```{r Fstandcount}
+mix.model <- lmer(Fall.Alfalfa.Stand.Count ~ Entry * treatment + (1 | Block), data = data)
+anova(mix.model)
+# Entry is significant Pr(>F) = 0.0001585, treatment marginally so Pr(>F) = 0.0534388, and the interaction is not significant Pr(>F) = 0.1511384
+## stand count differed significantly by entry
+## no strong evidence of an entry-by-treatment interaction across all entries; most entries respond similarly to treatment
+summary(mix.model)
+# Entries IWAF_H_WI1, IWAF_L_KS1, IWAF_L_MN1, IWAF_L_WI1, UMN5560, and UMN5561 were not different than the  reference entry (IWAF_H_MN1) in monoculture
+# Larry15 was significantly lower stand count than the reference entry (IWAF_H_MN1) in monoculture Pr(>|t|)=0.00974
+# No overall difference between intercrop and monoculture for the reference entry Pr(>|t|) =0.33807
+# Entry IWAF_L_KS1, IWAF_L_MN1, Larry15, and UMN5560 were not different from the reference entry (IWAF_H_MN1)
+## these entries responded the same in intercrop as in monoculture 
+# Entry UMN5561 was marginally lower stand count
+## may be negativly effected by intercrop
+# Entries IWAF_H_WI1 and IWAF_L_WI1 were significanly lower stand counts in intercrop compared to monoculture 
+```
+
+# Fall Height 
+```{r Fheight}
+mix.model <- lmer(Fall.Alfalfa.Height ~ Entry * treatment + (1 | Block), data = data)
+anova(mix.model)
+# Entry is significant Pr(>F) = 0.001157, treatment and the interaction are not significant
+## hieght differed significantly by entry
+## no strong evidence of an entry-by-treatment interaction across all entries; most entries respond similarly to treatment
+summary(mix.model)
+# Larry15 was significantly lower height than the reference entry (IWAF_H_MN1) in monoculture Pr(>|t|)=0.00778
+```
+
+# Winter Survival
+```{r winter_survival}
+mix.model <- lmer(Alfalfa.winter.survival ~ Entry * treatment + (1 | Block), data = data)
+anova(mix.model)
+# Entry is marginally significant Pr(>F) = 0.06699, treatment and the interaction are not significant
+## no strong evidence for significance of entry or treatment;  entries respond similarly to treatment
+summary(mix.model)
+# Entry UMN5561 had significanly higher winter survival than the reference entry (IWAF_H_MN1) in monoculture Pr(>|t|)=0.00778
+# one individual interaction is significant : UMN5561:monoculture Pr(>|t|) = 0.03803
+# this entry shows a significant treatment effect where winter survival was lower in intercrop compared with monoculture 
+```
+
+# Spring Stand Count
+```{r Sstandcount}
+mix.model <- lmer(Spring.Alfalfa.stand.count ~ Entry * treatment + (1 | Block), data = data)
+anova(mix.model)
+# Entry, treatment and the interaction are not significant
+## no strong evidence for significant effect of entry or treatment or thier interaction;  entries respond similarly to treatment
+summary(mix.model)
+```
+
+# Spring Vigor
+```{r Svigor}
+mix.model <- lmer(Spring.Alfalfa.vigor ~ Entry * treatment + (1 | Block), data = data)
+anova(mix.model)
+# Entry is significant Pr(>F) = 0.001463, treatment and the interaction are not significant
+## vigor differed significantly by entry
+## no strong evidence of an entry-by-treatment interaction across all entries; most entries respond similarly to treatment
+summary(mix.model)
+# Entry Larry had marginally lower vigor than the reference entry (IWAF_H_MN1) in monoculture Pr(>|t|)=0.05486
+# Entries IWAF_H_WI1 and UMN5561 had significanly lower vigor than the reference entry (IWAF_H_MN1) in monoculture
+
+# Entry IWAF_L_MN1 is marginally significant Pr(>|t|) = 0.0875; all else equal, this entry has a vigor 1.2500 units higher than the intercept (IWAF_H_MN1)
+# two individual interaction terms are marginally significant : IWAF_H_WI1:monoculture Pr(>|t|) = 0.0620 and UMN5561:monoculture Pr(>|t|) = 0.0929
+## a few specific entries show a significant treatment effect
+## both entries show a weaker responce to monoculture compared to the reference
+```
+
+```{r}
+mix.model <- lmer(Spring.Alfalfa.height ~ Entry * treatment + (1 | Block), data = mono_entry_data)
+anova(mix.model)
+# Entry, treatment and the interaction have no significant effect on spring alfalfa hieght
+## no strong evidence for significance of entry or treatment;  entries respond similarly to treatment
+summary(mix.model)
+# interaction of IWAF_L_KS1:monoculture is marginally significant Pr(>|t|) = 0.0999; all else equal, this entry has a height 7.0500 units higher than the intercept (IWAF_H_MN1)
+## Entry might respond positivly to monoculture treatment 
+```
