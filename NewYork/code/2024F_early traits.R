@@ -9,6 +9,7 @@ library(lmerTest)
 library(lme4)
 library("PerformanceAnalytics")
 library(dplyr)
+library(tidyverse)
 library(psych)
 library(readxl) 
 library(emmeans)
@@ -77,7 +78,7 @@ hist(data$Spring.disease.incidence)
 hist(data$Spring.disease.severity)
 
 # correlation between alfalfa stand count and IWG stand count
-chart.Correlation(data[,c("Alfalfa.Stand.Count", "IWG.Stand.Count")], histogram=TRUE, pch=19)
+#chart.Correlation(data[,c("Alfalfa.Stand.Count", "IWG.Stand.Count")], histogram=TRUE, pch=19)
 
 # histogram of alfalfa stand count in intercrop and alfalfa stand count in monoculture 
 # visualize if data is normal
@@ -98,7 +99,10 @@ ggplot(data, aes(x = Fall.IWG.Height, fill = treatment)) +
        y = "Frequency") +
   theme_minimal()
 
-# box plot of each entry
+################################################
+############ box plot of each entry
+
+# stand count
 # visualize the value distribution for each entry, and if entry was in mono and intercrop, has that split as well
 ggplot(data, aes(x = factor(Entry), y = Fall.Alfalfa.Stand.Count, fill = treatment)) +
   geom_boxplot(position = position_dodge(width = 0.8)) +
@@ -134,7 +138,7 @@ ggplot(data, aes(x = Entry2, y = Spring.Alfalfa.stand.count, fill = treatment)) 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
-
+####################################
 # anova of alfalfa stand count
 #mix.lmer <- lmer(Fall.Alfalfa.Stand.Count ~ Entry2 + (1 | Block), data=intercrop_data)
 #summary(mix.lmer)
@@ -167,19 +171,104 @@ ggplot(intercrop_data, aes(x = Entry2, y = Fall.Alfalfa.Stand.Count)) +
             size = 4,
             vjust = 0)
 
-# Height 
-data$Entry3 <- reorder(data$Entry, data$Alfalfa.Height, FUN = median, na.rm = TRUE)
+################################################
+############ box plot of each entry
+
+# Height
+data$Entry3 <- reorder(data$Entry, data$Fall.Alfalfa.Height, FUN = median, na.rm = TRUE)
 # Plot
-ggplot(data, aes(x = Entry3, y = Alfalfa.Height, fill = treatment)) +
+ggplot(data, aes(x = Entry3, y = Fall.Alfalfa.Height, fill = treatment)) +
   geom_boxplot(position = position_dodge(width = 0.8)) +
   scale_fill_manual(values = c("blue", "red")) +  # Customize colors
-  labs(title = "Alfalfa Height Distribution\n(number of individual plants per 0.5m length of plot)",
+  labs(title = "Fall Alfalfa Height Distribution",
        x = "Entry",
        y = "Stand Count") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# save boxplot_F_alfalfa_height
+
+data$Entry4 <- reorder(data$Entry, data$Spring.Alfalfa.height, FUN = median, na.rm = TRUE)
+# Plot
+ggplot(data, aes(x = Entry4, y = Spring.Alfalfa.height, fill = treatment)) +
+  geom_boxplot(position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = c("blue", "red")) +  # Customize colors
+  labs(title = "Spring Alfalfa Height Distribution",
+       x = "Entry",
+       y = "Stand Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# save boxplot_S_alfalfa_height
+
+####################################
+# anova of alfalfa hieght
+#mix.lmer <- lmer(Fall.Alfalfa.Stand.Count ~ Entry2 + (1 | Block), data=intercrop_data)
+#summary(mix.lmer)
+#anova(mix.lmer)
+
+#emm_treat <- emmeans(mix.lmer, ~ treatment)
+#pairs(emm_treat, adjust = "tukey")  # Tukey HSD
+lm_simple <- lm(Fall.Alfalfa.Height ~ Entry, data = intercrop_data)
+anova(lm_simple)
+
+emm_entry <- emmeans(lm_simple, ~ Entry)
+pairs(emm_entry, adjust = "tukey")
+cld_entry <- cld(emm_entry, adjust = "tukey", Letters = letters)
+
+cld_df <- as.data.frame(cld_entry)
+cld_df$Entry2 <- reorder(cld_df$Entry, cld_df$emmean, FUN = median)
+levels(cld_df$Entry2) <- levels(data$Entry2)
+
+ggplot(intercrop_data, aes(x = Entry, y = Fall.Alfalfa.Height)) +
+  geom_boxplot(position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = c("blue", "red")) +
+  labs(title = "Alfalfa Height",
+       x = "Entry",
+       y = "Height") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(data = cld_df,
+            aes(x = Entry2, y = emmean + 5, label = .group),  # adjust y position if needed
+            inherit.aes = FALSE,
+            size = 4,
+            vjust = 0)
+# save boxplot_F_height_intercrop_only
+
+lm_simple <- lm(Spring.Alfalfa.height ~ Entry, data = intercrop_data)
+anova(lm_simple)
+
+emm_entry <- emmeans(lm_simple, ~ Entry)
+pairs(emm_entry, adjust = "tukey")
+cld_entry <- cld(emm_entry, adjust = "tukey", Letters = letters)
+
+cld_df <- as.data.frame(cld_entry)
+cld_df$Entry2 <- reorder(cld_df$Entry, cld_df$emmean, FUN = median)
+levels(cld_df$Entry2) <- levels(data$Entry2)
+
+ggplot(intercrop_data, aes(x = Entry, y = Spring.Alfalfa.height)) +
+  geom_boxplot(position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = c("blue", "red")) +
+  labs(title = "Alfalfa Height",
+       x = "Entry",
+       y = "Height") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(data = cld_df,
+            aes(x = Entry2, y = emmean + 12, label = .group),  # adjust y position if needed
+            inherit.aes = FALSE,
+            size = 4,
+            vjust = 0)
+# save boxplot_S_height_intercrop_only
+
+################################################
+############ 
 
 
+# kendall correlation (tau)
+# ordianal association between quantities (comparison of rank)
+# stand count
+corr <- cor.test(intercrop_data$Fall.Alfalfa.Stand.Count, intercrop_data$Spring.Alfalfa.stand.count, method = 'kendall')
+corr
 
-
-
+# height 
+corr <- cor.test(intercrop_data$Fall.Alfalfa.Height, intercrop_data$Spring.Alfalfa.height, method = 'kendall')
+corr
