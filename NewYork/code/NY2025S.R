@@ -44,10 +44,11 @@ mono_entry_data <- subset(data2, Entry %in% mono_entries) # entries that are in 
 
 #emm_treat <- emmeans(mix.lmer, ~ treatment)
 #pairs(emm_treat, adjust = "tukey")  # Tukey HSD
-lm_simple <- lm(Alfalfa_Height ~ Entry, data = intercrop_data)
-anova(lm_simple)
+#lm_simple <- lm(Alfalfa_Height ~ Entry, data = intercrop_data)
+#anova(lm_simple)
 
-emm_entry <- emmeans(lm_simple, ~ Entry)
+#emm_entry <- emmeans(lm_simple, ~ Entry)
+emm_entry <- emmeans(mix.lmer, ~ Entry)
 pairs(emm_entry, adjust = "tukey")
 cld_entry <- cld(emm_entry, adjust = "tukey", Letters = letters)
 
@@ -68,4 +69,44 @@ ggplot(intercrop_data, aes(x = Entry, y = Alfalfa_Height)) +
             inherit.aes = FALSE,
             size = 4,
             vjust = 0)
-# save boxplot_F_height_intercrop_only
+# save boxplot_S_height_intercrop_only
+
+
+#########################
+# anova of alfalfa maturity
+mix.lmer <- lmer(Alfalfa.maturity ~ Entry + (1 | Block), data=intercrop_data)
+#summary(mix.lmer)
+#anova(mix.lmer)
+
+emm_entry <- emmeans(mix.lmer, ~ Entry)
+pairs(emm_entry, adjust = "tukey")
+cld_entry <- cld(emm_entry, adjust = "tukey", Letters = letters)
+
+cld_df <- as.data.frame(cld_entry)
+cld_df$Entry2 <- reorder(cld_df$Entry, cld_df$emmean, FUN = median)
+levels(cld_df$Entry2) <- levels(intercrop_data$Entry)
+
+ggplot(intercrop_data, aes(x = Entry, y = Alfalfa.maturity)) +
+  geom_boxplot(position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = c("blue", "red")) +
+  labs(title = "Alfalfa Maturity",
+       x = "Entry",
+       y = "Height") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(data = cld_df,
+            aes(x = Entry2, y = emmean + 5, label = .group),  # adjust y position if needed
+            inherit.aes = FALSE,
+            size = 4,
+            vjust = 0)
+# save boxplot_S_height_intercrop_only
+
+
+
+################
+mix.lmer <- lmer(lodging ~ Entry + treatment + (1 | Block), data=data2)
+summary(mix.lmer)
+anova(mix.lmer)
+# lodging is not significant by Entry, although certain entries are significantly different (AVC1, Larry15, and marginally so: AVC3, INTALF20, IWAF-L-WI1, NY19-45)
+# treatment is sifnificant (monocultures are less lodged than intercrop)
+
