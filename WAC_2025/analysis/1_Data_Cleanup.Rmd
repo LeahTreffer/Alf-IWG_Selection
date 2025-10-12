@@ -1,0 +1,45 @@
+---
+title: "1_Data_Cleanup"
+author: "Leah Treffer"
+date: "2025-10-12"
+output: html_document
+---
+
+Goal is to load in KS and NY (and WI if I get it in time) data files and clean them up
+
+Make sure columns headers are coherent 
+
+Decide which columns I want to use in analysis
+
+Do any conversions necessary (ex. biomass per m lenth to kg/ha)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries}
+library(tidyverse)
+library(ggplot2)
+library(multcompView)
+library(lmerTest)
+library(lme4)
+library("PerformanceAnalytics")
+library(dplyr)
+library(psych)
+library(readxl) 
+library(emmeans)
+library(multcompView)
+library(multcomp)
+library(readr)
+```
+
+Importing data sets; originals from shared Alfalfa-IWG AFRP (2021-2024) drive: https://docs.google.com/spreadsheets/d/174FPws8YkK_Aar6RceiRMq0OhQHX-4BzSmRoH8hFvTs/edit?usp=share_link
+
+downloaded csv in "~/GitHub/Alf-IWG_Selection/data"
+
+```{r load_data}
+
+
+```
+
+
