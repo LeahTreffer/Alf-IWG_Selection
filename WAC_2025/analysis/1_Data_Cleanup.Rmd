@@ -3,6 +3,8 @@ title: "1_Data_Cleanup"
 author: "Leah Treffer"
 date: "2025-10-12"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 Goal is to load in KS and NY (and WI if I get it in time) data files and clean them up
@@ -14,10 +16,10 @@ Decide which columns I want to use in analysis
 Do any conversions necessary (ex. biomass per m lenth to kg/ha)
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, root.dir='/Users/lkt38/Documents/Github/Alf-IWG_Selection')
 ```
 
-```{r libraries}
+```{r libraries, include=FALSE}
 library(tidyverse)
 library(ggplot2)
 library(multcompView)
@@ -37,9 +39,54 @@ Importing data sets; originals from shared Alfalfa-IWG AFRP (2021-2024) drive: h
 
 downloaded csv in "~/GitHub/Alf-IWG_Selection/data"
 
-```{r load_data}
+csv COMBINED is a combination of the traits that are shared by at least 2 locations
 
+csv 2025_NY_MG2 and 2024_NY_MG2 are the data from the NY location
+
+
+```{r load_data}
+combined <- read_csv("data/Alf-IWG alfalfa selection MASTER - SHARED.csv")
+
+NY24 <- read.csv("data/Alf-IWG alfalfa selection MASTER - 2024_NY_MG2.csv")
+NY25 <- read.csv("data/Alf-IWG alfalfa selection MASTER - 2025_NY_MG2.csv")
+#NY <- merge()
+```
+
+```{r}
+# remove NY monocultures from the combined data
+combined <- subset(combined, treatment != 'monoculture' | is.na(treatment))
+```
+
+```{r}
+# categories as factors
+colnames(combined)
+combined$LOC <- as.factor(combined$LOC)
+combined$Entry <- as.factor(combined$Entry)
+combined$Rep <- as.factor(combined$Rep)
+combined$selected <- as.character(combined$selected)
+combined$selection_location <- as.factor(combined$selection_location)
+```
+
+```{r}
+# quadrat to kg/ha
+# g/linear m to kg/ha
+
+# 1 Acre = 34848 linear ft 
+# 1 Acre = 10621.67 linear m
+
+# 1 Hectares = 100 Acres
+
+# 1 g = 0.001 kg
+
+# g/m * 0.001 kg/g * 10621.67 m/a * 100 a/ha = kg/ha
+
+combined$First_Summer_ALF_Biomass <- combined$First_Summer_ALF_Biomass_Quadrat_g * 0.001 * 10621.67 * 100
+combined$First_Summer_IWG_Biomass <- combined$First_Summer_IWG_Biomass_Quadrat_g * 0.001 * 10621.67 * 100
+combined$First_Summer_Weed_Biomass <- combined$First_Summer_Weed_Biomass_Quadrat_g * 0.001 * 10621.67 * 100
+combined$First_Summer_Grain_Biomass <- combined$First_Summer_Grain_Biomass_Quadrat_g * 0.001 * 10621.67 * 100
 
 ```
 
-
+```{r}
+write_csv(combined, 'data/Intermediate/data_shared_across_locations.csv')
+```
