@@ -11,6 +11,14 @@ knitr::opts_chunk$set(echo = TRUE, root.dir='/Users/lkt38/Documents/Github/Alf-I
 ```
 
 ```{r}
+library(multcompView)
+library(lmerTest)
+library(lme4)
+library("PerformanceAnalytics")
+library(dplyr)
+```
+
+```{r}
 data <- read.csv('data/Intermediate/data_shared_across_locations_transformed.csv')
 ```
 
@@ -33,9 +41,19 @@ anova(model2)
 ```
 
 ```{r}
-# are entries significantly different in first year vigor
-model2 <- lmer(First_Yr_Regrowth_Vigor ~ Entry + (1|LOC:Rep), data=data)
-summary(model2)
-anova(model2)
-# yes, IAFAL-C3 and Larry 15 had lower vigor and IWAF-L-KS1 had higher vigor
+# do entries selected for intercropping differ than unselected entries
+data2 <- data %>%
+  mutate(selected_cat = case_when(
+    selected == "selected" ~ "selected",
+    selected == "base" ~ "base",
+    TRUE ~ "other"
+  ))
+data2$selected_cat <- as.factor(data2$selected_cat)
+
+model3 <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry + selected_cat + (1|LOC:Rep), data=data2)
+summary(model3)
+anova(model3)
+# no, but falcata is different than the rest
 ```
+
+

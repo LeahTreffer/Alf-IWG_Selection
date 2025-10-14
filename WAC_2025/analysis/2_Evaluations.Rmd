@@ -16,6 +16,9 @@ library(corrplot)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(RColorBrewer)
+install.packages("ggrepel")
+library(ggrepel)
 install.packages("irr")
 library(irr)
 install.packages("metan")
@@ -27,6 +30,35 @@ Make sure data is normal
 ```{r}
 data <- read.csv('data/Intermediate/data_shared_across_locations.csv')
 ```
+
+Box Plots
+
+```{r}
+ggplot(data, aes(x = Entry, y = First_Summer_ALF_Biomass)) +
+  geom_boxplot(na.rm = TRUE, fill = "lightblue", color = "black") +
+  facet_wrap(~ LOC, ncol = 1) +  # one plot per location stacked vertically
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Alfalfa biomass by Entry across Locations",
+       x = "Entry",
+       y = "Biomass (kg/ha)")
+
+```
+
+```{r}
+colors <- brewer.pal(n = 3, name = "Set2")  # 3 locations
+
+ggplot(data, aes(x = Entry, y = First_Summer_ALF_Biomass, fill = LOC)) +
+  geom_boxplot(na.rm = TRUE, position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = colors) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Alfalfa biomass by Entry and Location",
+       x = "Entry",
+       y = "Biomass (kg/ha)",
+       fill = "Location")
+```
+
 
 Histograms - Check Normality and Transform
 
@@ -107,9 +139,19 @@ rank_wide <- ranked %>%
 ```{r}
 # Overall stability (mean and sd)
 rank_summary <- rank_wide %>%
-  mutate(mean_rank = rowMeans(across(starts_with("LOC")), na.rm = TRUE),
-         sd_rank = apply(across(starts_with("LOC")), 1, sd, na.rm = TRUE)) %>%
+  mutate(mean_rank = rowMeans(across(c(KS,NY,WI)), na.rm = TRUE),
+         sd_rank = apply(across(c(KS,NY,WI)), 1, sd, na.rm = TRUE)) %>%
   arrange(mean_rank)
+rank_summary
+```
+
+```{r}
+ggplot(rank_summary, aes(x = mean_rank, y = sd_rank, label = Entry)) +
+geom_point() +
+geom_text_repel() +
+labs(x = "Mean Rank (Overall Performance)",
+y = "SD of Rank (Stability)",
+title = "Genotype Stability Across Locations")
 
 ```
 
