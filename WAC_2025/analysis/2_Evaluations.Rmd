@@ -6,34 +6,36 @@ editor_options:
   chunk_output_type: console
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, root.dir='/Users/lkt38/Documents/Github/Alf-IWG_Selection')
-```
-
-```{r}
+```{r include=FALSE}
 library(MASS)
 library(corrplot)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(RColorBrewer)
-install.packages("ggrepel")
+#install.packages("ggrepel")
 library(ggrepel)
-install.packages("irr")
+#install.packages("irr")
 library(irr)
-install.packages("metan")
+#install.packages("metan")
 library(metan)
+library(tidyverse)
+library(here)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = here::here())
 ```
 
 Make sure data is normal
 
-```{r}
-data <- read.csv('data/Intermediate/data_shared_across_locations.csv')
+```{r read}
+data <- read_csv("data/Intermediate/data_shared_across_locations.csv")
 ```
 
 Box Plots
 
-```{r}
+```{r boxplot}
 ggplot(data, aes(x = Entry, y = First_Summer_ALF_Biomass)) +
   geom_boxplot(na.rm = TRUE, fill = "lightblue", color = "black") +
   facet_wrap(~ LOC, ncol = 1) +  # one plot per location stacked vertically
@@ -45,7 +47,7 @@ ggplot(data, aes(x = Entry, y = First_Summer_ALF_Biomass)) +
 
 ```
 
-```{r}
+```{r boxplot2}
 colors <- brewer.pal(n = 3, name = "Set2")  # 3 locations
 
 ggplot(data, aes(x = Entry, y = First_Summer_ALF_Biomass, fill = LOC)) +
@@ -62,7 +64,7 @@ ggplot(data, aes(x = Entry, y = First_Summer_ALF_Biomass, fill = LOC)) +
 
 Histograms - Check Normality and Transform
 
-```{r}
+```{r hist}
 colnames(data)
 
 hist(data$Emergence_Stand_count) # left skewed
@@ -95,7 +97,7 @@ hist(data$First_Summer_Grain_Biomass)
 
 ```
 
-```{r}
+```{r norm}
 data$First_Summer_IWG_Height_log <- log(data$First_Summer_IWG_Height)
 data$First_Summer_ALF_Biomass_sqrt <- sqrt(data$First_Summer_ALF_Biomass)
 data$First_Summer_IWG_Biomass_log <- log(data$First_Summer_IWG_Biomass)
@@ -106,7 +108,7 @@ data2 <- data[,c('LOC', 'Entry', 'Rep', 'selected', 'selection_location', 'First
 
 Correlation 
 
-```{r}
+```{r corr}
 correlations = cor(data2[,c(6:ncol(data2))], use = "pairwise.complete.obs")
 corrplot.mixed(correlations, order = 'AOE')
 ## leave blank on non-significant coefficient
@@ -118,7 +120,7 @@ corrplot(correlations, p.mat = testRes$p, method = 'circle', type = 'lower', ins
 
 Stability or consistency of performance across environments
 
-```{r}
+```{r ranking}
 # average entry value per location
 entry_means <- data2 %>%
   group_by(LOC, Entry) %>%
@@ -136,7 +138,7 @@ rank_wide <- ranked %>%
   pivot_wider(names_from = LOC, values_from = rank)
 ```
 
-```{r}
+```{r stability}
 # Overall stability (mean and sd)
 rank_summary <- rank_wide %>%
   mutate(mean_rank = rowMeans(across(c(KS,NY,WI)), na.rm = TRUE),
@@ -145,7 +147,7 @@ rank_summary <- rank_wide %>%
 rank_summary
 ```
 
-```{r}
+```{r stabilityplot}
 ggplot(rank_summary, aes(x = mean_rank, y = sd_rank, label = Entry)) +
 geom_point() +
 geom_text_repel() +
@@ -155,14 +157,14 @@ title = "Genotype Stability Across Locations")
 
 ```
 
-```{r}
+```{r rankcorr}
 # pairwise rank correlation 
 cor(rank_wide$WI, rank_wide$NY, method = "spearman", use = "pairwise.complete.obs")
 cor(rank_wide$WI, rank_wide$KS, method = "spearman", use = "pairwise.complete.obs")
 cor(rank_wide$NY, rank_wide$KS, method = "spearman", use = "pairwise.complete.obs")
 ```
 
-```{r}
+```{r kendallW}
 # Select rank columns
 rank_matrix <- rank_wide %>%
   select(WI, NY, KS)
@@ -175,7 +177,7 @@ kendall(rank_matrix)
 
 Visualize GxE
 
-```{r}
+```{r GGEbiplot}
 # GGE biplot to visualize genotype × environment (G×E) interaction and identify which genotypes perform best in which environments
 means_wide <- entry_means %>%
   select(LOC, Entry, mean_biomass) %>%
@@ -187,7 +189,7 @@ plot(gge_model, type = 1, size.lab.gen = 3,   # smaller label size
      repel = TRUE)   # which-won-where
 ```
 
-```{r}
+```{r rankingplot}
 # visual of rankings
 ggplot(ranked, aes(x = LOC, y = rank, group = Entry, color = Entry)) +
   geom_line() +
@@ -198,6 +200,6 @@ ggplot(ranked, aes(x = LOC, y = rank, group = Entry, color = Entry)) +
        y = "Rank (1 = highest biomass)")
 ```
 
-```{r}
-write.csv(data2, 'data/Intermediate/data_shared_across_locations_transformed.csv')
+```{r save}
+#write.csv(data2, 'data/Intermediate/data_shared_across_locations_transformed.csv')
 ```

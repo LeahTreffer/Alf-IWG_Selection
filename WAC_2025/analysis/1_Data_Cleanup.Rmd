@@ -85,5 +85,5 @@ combined$First_Summer_Grain_Biomass <- combined$First_Summer_Grain_Biomass_Quadr
 ```
 
 ```{r}
-write_csv(combined, 'data/Intermediate/data_shared_across_locations.csv')
+#write_csv(combined, 'data/Intermediate/data_shared_across_locations.csv')
 ```
