@@ -11,13 +11,31 @@ knitr::opts_chunk$set(echo = TRUE, root.dir='/Users/lkt38/Documents/Github/Alf-I
 ```
 
 ```{r}
-data <- read.csv('data/Intermediate/data_shared_across_locations.csv')
+data <- read.csv('data/Intermediate/data_shared_across_locations_transformed.csv')
 ```
 
 Hypothesis Testing
 
 ```{r}
-model <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry + (1|LOC:Rep), data=data2)
+# are entries significantly different in first year summer biomass
+model <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry + (1|LOC:Rep), data=data)
 summary(model)
 anova(model)
+# no, but Larry was different from everything else with increasing biomass
+```
+
+```{r}
+# are entries significantly different in first year vigor
+model2 <- lmer(First_Yr_Regrowth_Vigor ~ Entry + (1|LOC:Rep), data=data)
+summary(model2)
+anova(model2)
+# yes, IAFAL-C3 and Larry 15 had lower vigor and IWAF-L-KS1 had higher vigor
+```
+
+```{r}
+# are entries significantly different in first year vigor
+model2 <- lmer(First_Yr_Regrowth_Vigor ~ Entry + (1|LOC:Rep), data=data)
+summary(model2)
+anova(model2)
+# yes, IAFAL-C3 and Larry 15 had lower vigor and IWAF-L-KS1 had higher vigor
 ```

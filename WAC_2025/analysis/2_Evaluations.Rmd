@@ -13,6 +13,13 @@ knitr::opts_chunk$set(echo = TRUE, root.dir='/Users/lkt38/Documents/Github/Alf-I
 ```{r}
 library(MASS)
 library(corrplot)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+install.packages("irr")
+library(irr)
+install.packages("metan")
+library(metan)
 ```
 
 Make sure data is normal
@@ -75,4 +82,80 @@ corrplot.mixed(correlations, order = 'AOE')
 testRes = cor.mtest(data2[,c(6:ncol(data2))], conf.level = 0.95)
 corrplot(correlations, p.mat = testRes$p, method = 'circle', type = 'lower', insig='blank',
          addCoef.col ='black', number.cex = 0.8, order = 'AOE', diag=FALSE)
+```
+
+Stability or consistency of performance across environments
+
+```{r}
+# average entry value per location
+entry_means <- data2 %>%
+  group_by(LOC, Entry) %>%
+  summarise(mean_biomass = mean(First_Summer_ALF_Biomass_sqrt, na.rm = TRUE)) %>%
+  ungroup()
+
+# rank entries per location
+ranked <- entry_means %>%
+  group_by(LOC) %>%
+  mutate(rank = rank(-mean_biomass, ties.method = "average")) %>%
+  ungroup()
+
+rank_wide <- ranked %>%
+  select(LOC, Entry, rank) %>%
+  pivot_wider(names_from = LOC, values_from = rank)
+```
+
+```{r}
+# Overall stability (mean and sd)
+rank_summary <- rank_wide %>%
+  mutate(mean_rank = rowMeans(across(starts_with("LOC")), na.rm = TRUE),
+         sd_rank = apply(across(starts_with("LOC")), 1, sd, na.rm = TRUE)) %>%
+  arrange(mean_rank)
+
+```
+
+```{r}
+# pairwise rank correlation 
+cor(rank_wide$WI, rank_wide$NY, method = "spearman", use = "pairwise.complete.obs")
+cor(rank_wide$WI, rank_wide$KS, method = "spearman", use = "pairwise.complete.obs")
+cor(rank_wide$NY, rank_wide$KS, method = "spearman", use = "pairwise.complete.obs")
+```
+
+```{r}
+# Select rank columns
+rank_matrix <- rank_wide %>%
+  select(WI, NY, KS)
+
+# Kendall’s W
+kendall(rank_matrix)
+# W = relative agreement (0-1)
+# pval = is observed agreement significantly greater than expected by chance
+```
+
+Visualize GxE
+
+```{r}
+# GGE biplot to visualize genotype × environment (G×E) interaction and identify which genotypes perform best in which environments
+means_wide <- entry_means %>%
+  select(LOC, Entry, mean_biomass) %>%
+  pivot_wider(names_from = LOC, values_from = mean_biomass)
+
+gge_model <- gge(entry_means, env = LOC, gen = Entry, resp = mean_biomass)
+plot(gge_model, type = 1, size.lab.gen = 3,   # smaller label size
+     max.overlaps = 15000, # allow more overlaps
+     repel = TRUE)   # which-won-where
+```
+
+```{r}
+# visual of rankings
+ggplot(ranked, aes(x = LOC, y = rank, group = Entry, color = Entry)) +
+  geom_line() +
+  geom_point() +
+  scale_y_reverse() +  # rank 1 at top
+  theme_minimal() +
+  labs(title = "Alfalfa Entry rankings across locations",
+       y = "Rank (1 = highest biomass)")
+```
+
+```{r}
+write.csv(data2, 'data/Intermediate/data_shared_across_locations_transformed.csv')
 ```
