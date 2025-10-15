@@ -97,13 +97,70 @@ hist(data$First_Summer_Grain_Biomass)
 
 ```
 
+```{r}
+# is Alfalfa Height driven by lodging 
+# split data by high and low lodging and see if those alfalfa hieghts are normal 
+low_lodging <- data %>%
+  filter(First_Summer_Lodging %in% c(0, 1, 2))
+
+high_lodging <- data %>%
+  filter(First_Summer_Lodging %in% c(2, 3, 4, 5, 6, 7, 8, 9))
+
+no_lodging <- data %>%
+  filter(First_Summer_Lodging %in% is.na(First_Summer_Lodging))
+
+# WI didn't have lodging values so they are all within:   | is.na(First_Summer_Lodging) 
+
+hist(low_lodging$First_Summer_Alfalfa_Height)
+hist(sqrt(low_lodging$First_Summer_Alfalfa_Height))
+hist(high_lodging$First_Summer_Alfalfa_Height)
+hist(sqrt(high_lodging$First_Summer_Alfalfa_Height))
+hist(no_lodging$First_Summer_Alfalfa_Height)
+
+# Alfalfa with a plot lodging score of 0,1,2 have a normally distributed height when transformed 
+# Alfalfa with lodging score 3,4,5,6,7,8,9 have a different normally distributed height when transformed
+# Alfalfa from WI also have a normal distribution 
+```
+
+```{r}
+# Are entries different by height ; must account for lodging 
+model5 <- lmer(First_Summer_Alfalfa_Height ~ First_Summer_Lodging + Entry*LOC + (1|LOC:Rep), data=data)
+anova(model5)
+
+data <- broom.mixed::augment(model5, data = data) # add residuals to data file paired with the correct rows
+data <- data %>% rename(First_Summer_ALF_Height = .resid) # rename residual column 
+hist(data$First_Summer_ALF_Height) # visual check 
+# check if that's coming from a normal distribution 
+shapiro.test(data$First_Summer_ALF_Height)
+# W : 1 is normal 
+# p-val: Probability that the data are not significantly different from normal
+
+data <- data %>%
+  select(-.resid, -.fitted, -.hat, -.cooksd, -.fixed, -.mu, -.offset,
+         -.sqrtXwt, -.sqrtrwt, -.weights, -.wtres) # remove extra columns 
+```
+
+```{r}
+# Are entries different by height ; must account for lodging 
+model6 <- lmer(First_Summer_IWG_Height ~ First_Summer_Lodging + Entry*LOC + (1|LOC:Rep), data=data)
+anova(model6)
+
+data <- broom.mixed::augment(model6, data = data) # add residuals to data file paired with the correct rows
+data <- data %>% rename(First_Summer_IWG_height = .resid) # rename residual column 
+hist(data$First_Summer_IWG_height) # visual check 
+# check if that's coming from a normal distribution 
+shapiro.test(data$First_Summer_IWG_height)
+# W : 1 is normal 
+# p-val: Probability that the data are not significantly different from normal
+```
+
 ```{r norm}
 data$First_Summer_IWG_Height_log <- log(data$First_Summer_IWG_Height)
 data$First_Summer_ALF_Biomass_sqrt <- sqrt(data$First_Summer_ALF_Biomass)
 data$First_Summer_IWG_Biomass_log <- log(data$First_Summer_IWG_Biomass)
 
 # make data frame of normal values
-data2 <- data[,c('LOC', 'Entry', 'Rep', 'selected', 'selection_location', 'First_Summer_IWG_Height_log', 'First_Summer_Maturity', 'First_Yr_Regrowth_Vigor', 'First_Summer_ALF_Biomass_sqrt', 'First_Summer_IWG_Biomass_log', 'First_Summer_Lodging')]
+data2 <- data[,c('LOC', 'Entry', 'Rep', 'selected', 'selection_location', 'First_Summer_ALF_Height', 'First_Summer_IWG_Height_log', 'First_Summer_Maturity', 'First_Yr_Regrowth_Vigor', 'First_Summer_ALF_Biomass_sqrt', 'First_Summer_IWG_Biomass_log', 'First_Summer_Lodging')]
 ```
 
 Correlation 

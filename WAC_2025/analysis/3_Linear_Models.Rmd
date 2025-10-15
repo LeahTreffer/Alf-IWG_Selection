@@ -14,6 +14,7 @@ library(lmerTest)
 library(lme4)
 library("PerformanceAnalytics")
 library(dplyr)
+library(broom.mixed)
 ```
 
 ```{r setup, include=FALSE}
@@ -24,38 +25,64 @@ knitr::opts_knit$set(root.dir = here::here())
 data <- read.csv('data/Intermediate/data_shared_across_locations_transformed.csv')
 ```
 
-Hypothesis Testing
-
 ```{r}
-# are entries significantly different in first year summer biomass
-model <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry + (1|LOC:Rep), data=data)
-summary(model)
-anova(model)
-# no, but Larry was different from everything else with increasing biomass
-```
-
-```{r}
-# are entries significantly different in first year vigor
-model2 <- lmer(First_Yr_Regrowth_Vigor ~ Entry + (1|LOC:Rep), data=data)
-summary(model2)
-anova(model2)
-# yes, IAFAL-C3 and Larry 15 had lower vigor and IWAF-L-KS1 had higher vigor
-```
-
-```{r}
-# do entries selected for intercropping differ than unselected entries
 data2 <- data %>%
   mutate(selected_cat = case_when(
     selected == "selected" ~ "selected",
     selected == "base" ~ "base",
     TRUE ~ "other"
+  ))%>%
+  mutate(selected_cat2 = case_when(
+    selection_location == "WI" ~ "selectWI",
+    selection_location == "KS" ~ "select",
+    selection_location == "MN" ~ "select",
+    selected == "base" ~ "base",
+    TRUE ~ "other"
   ))
 data2$selected_cat <- as.factor(data2$selected_cat)
+data2$selected_cat2 <- as.factor(data2$selected_cat2)
+```
 
-model3 <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry + selected_cat + (1|LOC:Rep), data=data2)
-summary(model3)
+Testing significance of entry on first year traits 
+
+```{r}
+# are entries significantly different in first year summer biomass
+model <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + (1|LOC:Rep), data=data2)
+anova(model)
+summary(model)
+```
+
+```{r}
+# are entries significantly different in first year vigor
+model2 <- lmer(First_Yr_Regrowth_Vigor ~ Entry*LOC + (1|LOC:Rep), data=data2)
+anova(model2)
+summary(model2)
+# Entry and Entry*Location interaction were significant
+```
+
+```{r}
+# do entries selected for intercropping differ than unselected entries
+model3 <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + selected_cat + (1|LOC:Rep), data=data2)
 anova(model3)
-# no, but falcata is different than the rest
+summary(model3)
+
+```
+
+```{r}
+# are entries selected for intercropping in Wisconsin different than those selected in other locations
+model4 <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + selected_cat2 + (1|LOC:Rep), data=data2)
+anova(model4)
+summary(model4)
 ```
 
 
+
+try selection as a fixed effect and entry as a random effect in a liklihood ratio test
+
+```{r}
+model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat + (1 | Entry) + (1|LOC:Rep), data=data2)
+
+model_H0 <- lmer(First_Summer_ALF_Biomass_sqrt ~ 1 + (1 | Entry) + (1|LOC:Rep), data=data2)
+
+anova(model_H0, model_Ha)
+```
