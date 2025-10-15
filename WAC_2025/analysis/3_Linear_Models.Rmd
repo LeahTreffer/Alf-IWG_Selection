@@ -81,18 +81,26 @@ anova(model4)
 summary(model4)
 ```
 
+```{r}
+# do entries selected for intercropping differ than unselected entries
+model5 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat + (1|Entry*LOC) + (1|LOC:Rep), data=data2)
+anova(model5)
+summary(model5)
+```
 
-
-try selection as a fixed effect and entry as a random effect in a liklihood ratio test
+Likelihood ratio test
 
 ```{r}
 # determine whether being selected for intercropping is statistically significant
 # is their a significant difference between the two models in the liklihood of observing given data given normal distribution 
-model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat + (1 | Entry) + (1|LOC:Rep), data=data2) # alternate hypothesis : intercropping selection influences biomass
+model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected*LOC + (1 | Entry) + (1|LOC:Rep), data=data2) # alternate hypothesis : intercropping selection influences biomass
 
 model_H0 <- lmer(First_Summer_ALF_Biomass_sqrt ~ 1 + (1 | Entry) + (1|LOC:Rep), data=data2) # null hypothesis : selection doesn't matter to biomass
 
 anova(model_H0, model_Ha)
+# Pr(>Chisq) = 0.08768
+# Alternative model with selection does not significantly improve model fit
+# Being selected for intercropping does not significantly affect First_Summer_ALF_Biomass (after accounting for Entry, Location, and Rep)
 
 LRT <- lrtest(model_H0, model_Ha)
 LRT
@@ -102,6 +110,11 @@ LRT
 # Chisq : likelihood ratio test statistic (difference in log-likelihood between models)
 # Pr(>Chisq): p-value associated with likelihood ratio test
 ## p-value < 0.05 : reject null hypothesis. Alternative model better explains data
+
+library(emmeans)
+emmeans(model_Ha, pairwise ~ selected)
+plot(emmeans(model_Ha, ~ selected))
+
 ```
 
 ```{r}

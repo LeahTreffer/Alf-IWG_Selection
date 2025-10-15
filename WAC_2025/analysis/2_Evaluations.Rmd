@@ -156,10 +156,10 @@ hist(no_lodging$First_Summer_Alfalfa_Height)
 
 ```{r}
 # Are entries different by height ; must account for lodging 
-model5 <- lmer(First_Summer_Alfalfa_Height ~ First_Summer_Lodging + Entry*LOC + (1|LOC:Rep), data=data)
-anova(model5)
+model <- lmer(First_Summer_Alfalfa_Height ~ First_Summer_Lodging + Entry*LOC + (1|LOC:Rep), data=data)
+anova(model)
 
-data <- broom.mixed::augment(model5, data = data) # add residuals to data file paired with the correct rows
+data <- broom.mixed::augment(model, data = data) # add residuals to data file paired with the correct rows
 data <- data %>% rename(First_Summer_ALF_Height = .resid) # rename residual column 
 hist(data$First_Summer_ALF_Height) # visual check 
 # check if that's coming from a normal distribution 
@@ -174,10 +174,10 @@ data <- data %>%
 
 ```{r}
 # Are entries different by height ; must account for lodging 
-model6 <- lmer(First_Summer_IWG_Height ~ First_Summer_Lodging + Entry*LOC + (1|LOC:Rep), data=data)
-anova(model6)
+model2 <- lmer(First_Summer_IWG_Height ~ First_Summer_Lodging + Entry*LOC + (1|LOC:Rep), data=data)
+anova(model2)
 
-data <- broom.mixed::augment(model6, data = data) # add residuals to data file paired with the correct rows
+data <- broom.mixed::augment(model2, data = data) # add residuals to data file paired with the correct rows
 data <- data %>% rename(First_Summer_IWG_height = .resid) # rename residual column 
 hist(data$First_Summer_IWG_height) # visual check 
 # check if that's coming from a normal distribution 
