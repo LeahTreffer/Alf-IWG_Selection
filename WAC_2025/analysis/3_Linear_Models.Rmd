@@ -8,10 +8,12 @@ editor_options:
 
 ```{r include=FALSE}
 library(tidyverse)
+#install.packages("here")
 library(here)
 library(multcompView)
 library(lmerTest)
 library(lme4)
+library(lmtest)
 library("PerformanceAnalytics")
 library(dplyr)
 library(broom.mixed)
@@ -27,20 +29,18 @@ data <- read.csv('data/Intermediate/data_shared_across_locations_transformed.csv
 
 ```{r}
 data2 <- data %>%
-  mutate(selected_cat = case_when(
+  mutate(selected_cat = as.factor(case_when(
     selected == "selected" ~ "selected",
     selected == "base" ~ "base",
     TRUE ~ "other"
-  ))%>%
-  mutate(selected_cat2 = case_when(
+  )))%>%
+  mutate(selected_cat2 = as.factor(case_when(
     selection_location == "WI" ~ "selectWI",
     selection_location == "KS" ~ "select",
     selection_location == "MN" ~ "select",
     selected == "base" ~ "base",
     TRUE ~ "other"
-  ))
-data2$selected_cat <- as.factor(data2$selected_cat)
-data2$selected_cat2 <- as.factor(data2$selected_cat2)
+  )))
 ```
 
 Testing significance of entry on first year traits 
@@ -50,6 +50,8 @@ Testing significance of entry on first year traits
 model <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + (1|LOC:Rep), data=data2)
 anova(model)
 summary(model)
+# Location is significant covariant Pr(>F) = 0.04401
+# When controlling for location, Entry is not significant, although AVC3 had significantly lower biomass than other Entries
 ```
 
 ```{r}
@@ -58,14 +60,18 @@ model2 <- lmer(First_Yr_Regrowth_Vigor ~ Entry*LOC + (1|LOC:Rep), data=data2)
 anova(model2)
 summary(model2)
 # Entry and Entry*Location interaction were significant
+# AVC6, IAFAL-C3, Larry15, NY19-45 had lower regrowth vigor
+# WI had significantly lower regrowth vigor
+# AVC11. AVC5, AVC6, IAFAL-C3, IWAF-H-Base, IWAF-H-WI1 interaction with WI was positive
 ```
+
+
 
 ```{r}
 # do entries selected for intercropping differ than unselected entries
 model3 <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + selected_cat + (1|LOC:Rep), data=data2)
 anova(model3)
 summary(model3)
-
 ```
 
 ```{r}
@@ -80,9 +86,118 @@ summary(model4)
 try selection as a fixed effect and entry as a random effect in a liklihood ratio test
 
 ```{r}
-model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat + (1 | Entry) + (1|LOC:Rep), data=data2)
+# determine whether being selected for intercropping is statistically significant
+# is their a significant difference between the two models in the liklihood of observing given data given normal distribution 
+model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat + (1 | Entry) + (1|LOC:Rep), data=data2) # alternate hypothesis : intercropping selection influences biomass
 
-model_H0 <- lmer(First_Summer_ALF_Biomass_sqrt ~ 1 + (1 | Entry) + (1|LOC:Rep), data=data2)
+model_H0 <- lmer(First_Summer_ALF_Biomass_sqrt ~ 1 + (1 | Entry) + (1|LOC:Rep), data=data2) # null hypothesis : selection doesn't matter to biomass
 
 anova(model_H0, model_Ha)
+
+LRT <- lrtest(model_H0, model_Ha)
+LRT
+# 1 & 2 : Null and Alternative model
+# Df : df or n parameters
+# Loglik : log-liklihood values
+# Chisq : likelihood ratio test statistic (difference in log-likelihood between models)
+# Pr(>Chisq): p-value associated with likelihood ratio test
+## p-value < 0.05 : reject null hypothesis. Alternative model better explains data
 ```
+
+```{r}
+# determine whether being selected for intercropping is statistically significant
+# is their a significant difference between the two models in the liklihood of observing given data given normal distribution 
+model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat2 + (1 | Entry) + (1|LOC:Rep), data=data2) # alternate hypothesis : intercropping selection influences biomass
+
+model_H0 <- lmer(First_Summer_ALF_Biomass_sqrt ~ 1 + (1 | Entry) + (1|LOC:Rep), data=data2) # null hypothesis : selection doesn't matter to biomass
+
+LRT <- lrtest(model_H0, model_Ha)
+LRT
+# 1 & 2 : Null and Alternative model
+# Df : df or n parameters
+# Loglik : log-liklihood values
+# Chisq : likelihood ratio test statistic (difference in log-likelihood between models)
+# Pr(>Chisq): p-value associated with likelihood ratio test
+## p-value < 0.05 : reject null hypothesis. Alternative model better explains data
+```
+
+```{r}
+# Are WI populations selected from a specific WI base population different between the base and selected
+# equal variance t-test
+## base > selected
+## AVC1 > AVC6
+## AVC2 > AVC7
+## AVC3 > AVC9
+## AVC4 > AVC11
+## AVC5 > AVC 14
+## IWAF-L-Base > IWAF-L-WI1
+## IWAF-H-Base > IWAF-H-WI1
+
+# Manually 
+# t = (x_bar1 - x_bar2)/ sqrt(sd^2(1/n1 + 1/n2))
+x_bar1 <- data2 %>%
+  filter(Entry == "AVC1") %>%
+  summarise(mean_value = mean(First_Summer_ALF_Biomass_sqrt, na.rm = TRUE)) %>%
+  pull(mean_value)
+x_bar2 <- data2 %>%
+  filter(Entry == "AVC6") %>%
+  summarise(mean_value = mean(First_Summer_ALF_Biomass_sqrt, na.rm = TRUE)) %>%
+  pull(mean_value)
+sd <- data2 %>%
+  filter(Entry %in% c("AVC1", "AVC6")) %>%
+  summarise(sd_value = sd(First_Summer_ALF_Biomass_sqrt, na.rm = TRUE)) %>%
+  pull(sd_value)
+n1 <- data2 %>%
+  filter(Entry == "AVC1", !is.na(First_Summer_ALF_Biomass_sqrt)) %>%
+  summarise(n = n()) %>%
+  pull(n)
+n2 <- data2 %>%
+  filter(Entry == "AVC6", !is.na(First_Summer_ALF_Biomass_sqrt)) %>%
+  summarise(n = n()) %>%
+  pull(n)
+df <- n1 + n2 - 2
+t = (x_bar1 - x_bar2)/ sqrt(sd^2 * (1/n1 + 1/n2))
+# critical t-value for one-tailed t-test with a=0.05 and df=21 : 1.721
+# critical t-value for two-tailed t-test with a=0.05 and df=21 : 2.080
+
+# t-test function 
+t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
+       data = filter(data2, Entry %in% c("AVC1", "AVC6")),
+       var.equal = TRUE)
+t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
+       data = filter(data2, Entry %in% c("AVC2", "AVC7")),
+       var.equal = TRUE)
+t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
+       data = filter(data2, Entry %in% c("AVC3", "AVC9")),
+       var.equal = TRUE)
+t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
+       data = filter(data2, Entry %in% c("AVC4", "AVC11")),
+       var.equal = TRUE)
+t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
+       data = filter(data2, Entry %in% c("AVC5", "AVC14")),
+       var.equal = TRUE)
+t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
+       data = filter(data2, Entry %in% c("IWAF-L-Base", "IWAF-L-WI1")),
+       var.equal = TRUE)
+t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
+       data = filter(data2, Entry %in% c("IWAF-H-Base", "IWAF-H-WI1")),
+       var.equal = TRUE)
+```
+
+```{r}
+# Are any populations selected from the base population different between the base and selected
+# equal variance t-test
+t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
+       data = filter(data2, Entry %in% c("IWAF-L-Base", "IWAF-L-KS1")),
+       var.equal = TRUE)
+t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
+       data = filter(data2, Entry %in% c("IWAF-H-Base", "IWAF-H-KS2")), # only exists in KS
+       var.equal = TRUE)
+t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
+       data = filter(data2, Entry %in% c("IWAF-L-Base", "IWAF-L-MN1")),
+       var.equal = TRUE)
+t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
+       data = filter(data2, Entry %in% c("IWAF-H-Base", "IWAF-H-MN1")),
+       var.equal = TRUE)
+```
+
