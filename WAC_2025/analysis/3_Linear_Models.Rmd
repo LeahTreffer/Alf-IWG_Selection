@@ -49,7 +49,7 @@ Testing significance of entry on first year traits
 # are entries significantly different in first year summer biomass
 model <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + (1|LOC:Rep), data=data2)
 anova(model)
-summary(model)
+#summary(model)
 # Location is significant covariant Pr(>F) = 0.04401
 # When controlling for location, Entry is not significant, although AVC3 had significantly lower biomass than other Entries
 ```
@@ -58,7 +58,7 @@ summary(model)
 # are entries significantly different in first year vigor
 model2 <- lmer(First_Yr_Regrowth_Vigor ~ Entry*LOC + (1|LOC:Rep), data=data2)
 anova(model2)
-summary(model2)
+#summary(model2)
 # Entry and Entry*Location interaction were significant
 # AVC6, IAFAL-C3, Larry15, NY19-45 had lower regrowth vigor
 # WI had significantly lower regrowth vigor
@@ -71,21 +71,21 @@ summary(model2)
 # do entries selected for intercropping differ than unselected entries
 model3 <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + selected_cat + (1|LOC:Rep), data=data2)
 anova(model3)
-summary(model3)
+#summary(model3)
 ```
 
 ```{r}
 # are entries selected for intercropping in Wisconsin different than those selected in other locations
 model4 <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + selected_cat2 + (1|LOC:Rep), data=data2)
 anova(model4)
-summary(model4)
+#summary(model4)
 ```
 
 ```{r}
 # do entries selected for intercropping differ than unselected entries
 model5 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat + (1|Entry*LOC) + (1|LOC:Rep), data=data2)
 anova(model5)
-summary(model5)
+#summary(model5)
 ```
 
 Likelihood ratio test
