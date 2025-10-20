@@ -1,0 +1,233 @@
+---
+title: "4_GxE_stability"
+author: "Leah Treffer"
+date: "2025-10-20"
+output: html_document
+---
+
+
+```{r include=FALSE}
+library(tidyverse)
+#install.packages("here")
+library(here)
+library(multcompView)
+library(lmerTest)
+library(lme4)
+library(lmtest)
+library("PerformanceAnalytics")
+library(dplyr)
+library(broom.mixed)
+library(emmeans)
+library(metan)
+library(purrr)
+library(tidyr)
+#install.packages("lsmeans")
+library("multcomp")
+```
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = here::here())
+```
+
+```{r}
+data <- read.csv('data/Intermediate/data_shared_across_locations_transformed.csv')
+```
+
+```{r}
+data2 <- data %>%
+  mutate(selected_cat = as.factor(case_when(
+    selected == "selected" ~ "selected",
+    selected == "base" ~ "base",
+    TRUE ~ "other"
+  )))%>%
+  mutate(selected_cat2 = as.factor(case_when(
+    selection_location == "WI" ~ "selectWI",
+    selection_location == "KS" ~ "select",
+    selection_location == "MN" ~ "select",
+    selected == "base" ~ "base",
+    TRUE ~ "other"
+  )))
+```
+
+## What is the stability of performance across locations?
+
+```{r}
+# variance components model
+# estimates how much of the total variation in biomass comes from each covariant 
+model1 <- lmer(First_Summer_ALF_Biomass_sqrt ~ (1|LOC) + (1|LOC:Rep) + (1|Entry) + (1|Entry:LOC), data = data2)
+```
+
+```{r}
+#Variance of Entry = genetic variance
+#Variance of Entry:LOC = G×E variance
+#Ratio of these gives a stability index (lower G×E = more stable)
+summary(model1) # Variance due to fixed and random effects
+# Stability of Index = variance Entry / variance Entry:LOC
+vc <- as.data.frame(VarCorr(model1)) # make list of variance-covariance matrices
+var_entry <- vc$vcov[vc$grp == "Entry"]
+var_gxe <- vc$vcov[vc$grp == "Entry:LOC"]
+var_resid <- vc$vcov[vc$grp == "Residual"]
+stability_ratio <- var_entry / var_gxe
+stability_ratio
+# variance Entry > variance Entry:LOC : genotypes rank similarly across locations
+# variance Entry < variance Entry:LOC : genotypes perform inconsistently
+```
+
+```{r}
+# stabilty score for each Entry
+# Finlay–Wilkinson
+fw <- ge_reg(data2, env = LOC, gen = Entry, rep = Rep, resp = First_Summer_ALF_Biomass_sqrt)
+plot(fw)
+# slope of line = response to environment mean
+# slope ≈ 1 : stable
+# slope > 1 : high performer in good environments, sensitive
+# slope < 1 : better in poor environments
+```
+
+## Box Plot Visual
+
+```{r}
+# model from 3_Linear_Models.Rmd
+model2 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
+
+# Estimated marginal means by selection category within each location
+emm <- emmeans(model2, ~ selected_cat | LOC)
+
+# Pairwise comparisons (Tukey)
+cld_df <- cld(emm,
+              adjust = "tukey",
+              Letters = letters,
+              alpha = 0.05) %>%
+  as.data.frame()
+
+# merge
+data2_letters <- left_join(data2, cld_df %>% dplyr::select(LOC, selected_cat, .group),
+                           by = c("LOC", "selected_cat")) %>%
+  rename(letter = .group)
+
+y_positions <- data2_letters %>%
+  group_by(LOC, selected_cat) %>%
+  summarise(y_pos = max(First_Summer_ALF_Biomass_sqrt, na.rm = TRUE) * 1.05,
+            .groups = "drop")
+  
+data2_letters <- left_join(data2_letters, y_positions, by = c("LOC", "selected_cat"))
+
+# simple box plot
+ggplot(data2, aes(x = selected_cat, y = First_Summer_ALF_Biomass_sqrt, fill = selected_cat)) +
+geom_boxplot() +
+facet_wrap(~LOC)
+
+# box plot with significance indicated as letters
+ggplot(data2_letters,
+       aes(x = selected_cat, y = First_Summer_ALF_Biomass_sqrt, fill = selected_cat)) +
+  geom_boxplot() +
+  facet_wrap(~LOC) +
+  geom_text(aes(label = letter, y = y_pos),
+            vjust = 0,
+            size = 5,
+            angle = 45,
+            na.rm = TRUE) +
+  labs(x = "Selection Category",
+       y = "First Summer Biomass (sqrt)",
+       title = "Alfalfa Biomass by Selection Category across Locations") +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+broad-sense heritability across locations
+
+```{r}
+# H^2 = variance Entry / (variance Entry + (variance Entry:LOC / N_LOC) + (variance residules / N_LOC * N_Rep))
+n_loc <- length(unique(data2$LOC))
+n_rep <- 4
+H2 <- var_entry / (var_entry + (var_gxe / n_loc) + (var_resid / n_loc * n_rep))
+H2
+```
+
+progeny vs base performance gain
+
+```{r}
+means <- data2 %>%
+  group_by(selected_cat, Entry) %>%
+  summarise(mean_biomass = mean(First_Summer_ALF_Biomass_sqrt, na.rm = TRUE))
+
+means %>%
+  group_by(selected_cat) %>%
+  summarise(overall_mean = mean(mean_biomass)) %>%
+  mutate(percent_gain_vs_base = 100*(overall_mean - first(overall_mean))/first(overall_mean))
+
+```
+
+### Summary Table
+
+```{r}
+
+traits <- c("First_Summer_Alfalfa_Height", "First_Summer_Maturity", "First_Yr_Regrowth_Vigor", "First_Summer_ALF_Biomass_sqrt")
+
+results <- lapply(traits, function(trait) {
+  model <- lmer(as.formula(paste(trait, "~ (1|LOC) + (1|LOC:Rep) + (1|Entry) + (1|Entry:LOC)")), 
+                data = data2)
+  
+  singular <- isSingular(model, tol = 1e-4)
+  
+  vc <- as.data.frame(VarCorr(model))
+  
+  var_entry <- vc[vc$grp == "Entry", "vcov"]
+  var_entry_loc <- vc[vc$grp == "Entry:LOC", "vcov"]
+  var_loc <- vc[vc$grp == "LOC:Rep", "vcov"]
+  var_resid <- vc[vc$grp == "Residual", "vcov"]
+  
+  stability_ratio <- var_entry / var_entry_loc
+  H2 <- var_entry / (var_entry + (var_entry_loc / length(unique(data2$LOC))) +
+                     (var_resid / (length(unique(data2$LOC)) * length(unique(data2$Rep)))))
+  
+  data.frame(
+    Trait = trait,
+    Var_ENTRY = var_entry,
+    Var_ENTRY_LOC = var_entry_loc,
+    Var_LOC = var_loc,
+    Var_Residual = var_resid,
+    Stability_Ratio = stability_ratio,
+    H2 = H2,
+    Singular = singular
+  )
+})
+
+results_table <- do.call(rbind, results)
+results_table
+
+
+```
+
+### trait relationships and genotype × environment structure
+*** Doesn't Work 
+
+```{r}
+# 36 plots don't have data for Biomass. AMMI cannot handle NAs
+data2_clean <- data2 %>%
+  filter(!is.na(First_Summer_ALF_Biomass_sqrt))%>%
+  dplyr::select("LOC", "Entry", "Rep", "First_Summer_ALF_Biomass_sqrt", "selected_cat")
+
+#AMMI_results <- performs_ammi(data2_clean, env = LOC, gen = Entry, rep = Rep, resp = First_Summer_ALF_Biomass_sqrt)
+#plot(AMMI_results, type = "biplot")
+
+# Only Entries existing in every location
+gen_complete <- data2 %>%
+  group_by(Entry) %>%
+  summarise(n_env = n_distinct(LOC)) %>%
+  filter(n_env == n_distinct(data2$LOC)) %>%
+  pull(Entry)
+
+data2_complete <- data2 %>%
+  filter(Entry %in% gen_complete)%>%
+  filter(!is.na(First_Summer_ALF_Biomass_sqrt))%>%
+  dplyr::select("LOC", "Entry", "Rep", "First_Summer_ALF_Biomass_sqrt", "selected_cat")
+
+AMMI_results <- performs_ammi(data2_complete, env = LOC, gen = Entry, rep = Rep, resp = First_Summer_ALF_Biomass_sqrt)
+plot(AMMI_results, type = "biplot")
+```
+

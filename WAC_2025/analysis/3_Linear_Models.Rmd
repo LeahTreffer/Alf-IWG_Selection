@@ -17,6 +17,7 @@ library(lmtest)
 library("PerformanceAnalytics")
 library(dplyr)
 library(broom.mixed)
+library(emmeans)
 ```
 
 ```{r setup, include=FALSE}
@@ -65,7 +66,11 @@ anova(model2)
 # AVC11. AVC5, AVC6, IAFAL-C3, IWAF-H-Base, IWAF-H-WI1 interaction with WI was positive
 ```
 
+## Do “selected” alfalfa differ from “base” alfalfa?
 
+# test whether selection has led to significant phenotypic differences across traits
+
+Biomass
 
 ```{r}
 # do entries selected for intercropping differ than unselected entries
@@ -86,9 +91,50 @@ anova(model4)
 model5 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat + (1|Entry*LOC) + (1|LOC:Rep), data=data2)
 anova(model5)
 #summary(model5)
+
+# test if selected > base, using post-hoc comparisons
+emmeans(model5, pairwise ~ selected_cat)
 ```
 
-Likelihood ratio test
+tests if selection effects are consistent or location-dependent
+
+```{r}
+model6 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
+anova(model6)
+emmeans(model6, pairwise ~ selected_cat | LOC)
+```
+
+Regrowth Vigor
+
+tests if selection effects are consistent or location-dependent
+
+```{r}
+model7 <- lmer(First_Yr_Regrowth_Vigor ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
+anova(model7)
+emmeans(model7, pairwise ~ selected_cat | LOC)
+```
+
+Summer Maturity 
+
+tests if selection effects are consistent or location-dependent
+
+Could be interesting if selection for delayed maturity (matching delayed summer harvest) has occured
+
+```{r}
+model8 <- lmer(First_Summer_Maturity ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
+anova(model8)
+emmeans(model8, pairwise ~ selected_cat | LOC)
+```
+
+Summer Height
+
+```{r}
+model9 <- lmer(First_Summer_Alfalfa_Height ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
+anova(model9)
+emmeans(model9, pairwise ~ selected_cat | LOC)
+```
+
+## Likelihood ratio test
 
 ```{r}
 # determine whether being selected for intercropping is statistically significant
@@ -111,7 +157,6 @@ LRT
 # Pr(>Chisq): p-value associated with likelihood ratio test
 ## p-value < 0.05 : reject null hypothesis. Alternative model better explains data
 
-library(emmeans)
 emmeans(model_Ha, pairwise ~ selected)
 plot(emmeans(model_Ha, ~ selected))
 
