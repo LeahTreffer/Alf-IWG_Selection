@@ -21,6 +21,8 @@ library(irr)
 library(metan)
 library(tidyverse)
 library(here)
+library(lme4)
+library(GGally)
 ```
 
 ```{r setup, include=FALSE}
@@ -159,16 +161,17 @@ hist(no_lodging$First_Summer_Alfalfa_Height)
 model <- lmer(First_Summer_Alfalfa_Height ~ First_Summer_Lodging + Entry*LOC + (1|LOC:Rep), data=data)
 anova(model)
 
-data <- broom.mixed::augment(model, data = data) # add residuals to data file paired with the correct rows
-data <- data %>% rename(First_Summer_ALF_Height = .resid) # rename residual column 
-hist(data$First_Summer_ALF_Height) # visual check 
+data_model <- data
+data_model <- broom.mixed::augment(model, data = data) # add residuals to data file paired with the correct rows
+data_model <- data_model %>% rename(First_Summer_ALF_Height = .resid) # rename residual column 
+hist(data_model$First_Summer_ALF_Height) # visual check 
 # check if that's coming from a normal distribution 
-shapiro.test(data$First_Summer_ALF_Height)
+shapiro.test(data_model$First_Summer_ALF_Height)
 # W : 1 is normal 
 # p-val: Probability that the data are not significantly different from normal
 
-data <- data %>%
-  select(-.resid, -.fitted, -.hat, -.cooksd, -.fixed, -.mu, -.offset,
+data_model <- data_model %>%
+  select(-.fitted, -.hat, -.cooksd, -.fixed, -.mu, -.offset,
          -.sqrtXwt, -.sqrtrwt, -.weights, -.wtres) # remove extra columns 
 ```
 
@@ -177,19 +180,24 @@ data <- data %>%
 model2 <- lmer(First_Summer_IWG_Height ~ First_Summer_Lodging + Entry*LOC + (1|LOC:Rep), data=data)
 anova(model2)
 
-data <- broom.mixed::augment(model2, data = data) # add residuals to data file paired with the correct rows
-data <- data %>% rename(First_Summer_IWG_height = .resid) # rename residual column 
-hist(data$First_Summer_IWG_height) # visual check 
+data_model2 <- data
+data_model2 <- broom.mixed::augment(model2, data = data) # add residuals to data file paired with the correct rows
+data_model2 <- data_model2 %>% rename(First_Summer_IWG_height = .resid) # rename residual column 
+hist(data_model2$First_Summer_IWG_height) # visual check 
 # check if that's coming from a normal distribution 
-shapiro.test(data$First_Summer_IWG_height)
+shapiro.test(data_model2$First_Summer_IWG_height)
 # W : 1 is normal 
 # p-val: Probability that the data are not significantly different from normal
+# sig p-val (<0.05) = no different than expected from normal data
 ```
 
 ```{r norm}
 data$First_Summer_IWG_Height_log <- log(data$First_Summer_IWG_Height)
 data$First_Summer_ALF_Biomass_sqrt <- sqrt(data$First_Summer_ALF_Biomass)
 data$First_Summer_IWG_Biomass_log <- log(data$First_Summer_IWG_Biomass)
+data$LOCserp <- paste0(data$LOC,"_",data$serpentine)
+data_model$LOCserp <- paste0(data_model$LOC,"_",data_model$serpentine)
+data <- merge(data, data_model[,c("LOCserp", "First_Summer_ALF_Height")], by="LOCserp", all.x = TRUE)
 
 # make data frame of normal values
 data2 <- data[,c('LOC', 'Entry', 'Rep', 'selected', 'selection_location', 'First_Summer_ALF_Height', 'First_Summer_IWG_Height_log', 'First_Summer_Maturity', 'First_Yr_Regrowth_Vigor', 'First_Summer_ALF_Biomass_sqrt', 'First_Summer_IWG_Biomass_log', 'First_Summer_Lodging')]
@@ -198,13 +206,40 @@ data2 <- data[,c('LOC', 'Entry', 'Rep', 'selected', 'selection_location', 'First
 Correlation 
 
 ```{r corr}
-correlations = cor(data2[,c(6:ncol(data2))], use = "pairwise.complete.obs")
+# Since there are both continuous and ordinal traits, use spearman instead of pearson
+
+# make better label names
+data2$Alfalfa_Height <- data2$First_Summer_ALF_Height
+data2$IWG_Biomass <- data2$First_Summer_IWG_Biomass_log
+data2$IWG_Height <- data2$First_Summer_IWG_Height_log
+data2$Alfalfa_Maturity <- data2$First_Summer_Maturity
+data2$Alfalfa_Regrowth <- data2$First_Yr_Regrowth_Vigor
+data2$Alfalfa_Biomass <- data2$First_Summer_ALF_Biomass_sqrt
+data2$Lodging <- data2$First_Summer_Lodging
+
+
+correlations = cor(data2[,c(13:ncol(data2))], use = "pairwise.complete.obs", method = "spearman")
 corrplot.mixed(correlations, order = 'AOE')
 ## leave blank on non-significant coefficient
 ## add significant correlation coefficients
-testRes = cor.mtest(data2[,c(6:ncol(data2))], conf.level = 0.95)
+testRes = cor.mtest(data2[,c(13:ncol(data2))], conf.level = 0.95, method = "spearman")
 corrplot(correlations, p.mat = testRes$p, method = 'circle', type = 'lower', insig='blank',
          addCoef.col ='black', number.cex = 0.8, order = 'AOE', diag=FALSE)
+
+# Just Alfalfa Traits
+correlations2 = cor(data2[,c("Alfalfa_Height", "Alfalfa_Maturity", "Alfalfa_Regrowth", "Alfalfa_Biomass")], use = "pairwise.complete.obs", method = "spearman")
+#corrplot.mixed(correlations2, order = 'AOE')
+## leave blank on non-significant coefficient
+## add significant correlation coefficients
+testRes = cor.mtest(data2[,c("Alfalfa_Height", "Alfalfa_Maturity", "Alfalfa_Regrowth", "Alfalfa_Biomass")], conf.level = 0.95, method="spearman")
+corrplot(correlations2, p.mat = testRes$p, method = 'circle', type = 'lower', insig='blank',
+         addCoef.col ='black', number.cex = 0.8, order = 'AOE', diag=FALSE)
+
+# not in spearman but a cool plot
+data2 %>%
+  ggpairs(columns = c("Alfalfa_Height", "Alfalfa_Maturity", "Alfalfa_Regrowth", "Alfalfa_Biomass"),
+          aes(color = selection_location))+
+  theme(strip.text = element_text(size = 18))
 ```
 
 Stability or consistency of performance across environments
