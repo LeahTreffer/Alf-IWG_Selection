@@ -3,6 +3,8 @@ title: "4_GxE_stability"
 author: "Leah Treffer"
 date: "2025-10-20"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 
@@ -70,7 +72,7 @@ var_resid <- vc$vcov[vc$grp == "Residual"]
 stability_ratio <- var_entry / var_gxe
 stability_ratio
 # variance Entry > variance Entry:LOC : genotypes rank similarly across locations
-# variance Entry < variance Entry:LOC : genotypes perform inconsistently
+# variance Entry < variance Entry:LOC : genotypes perform inconsistently * 
 ```
 
 ```{r}
@@ -146,6 +148,7 @@ n_loc <- length(unique(data2$LOC))
 n_rep <- 4
 H2 <- var_entry / (var_entry + (var_gxe / n_loc) + (var_resid / n_loc * n_rep))
 H2
+# 0.01025343
 ```
 
 progeny vs base performance gain

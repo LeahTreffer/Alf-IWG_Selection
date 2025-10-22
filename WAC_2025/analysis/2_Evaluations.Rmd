@@ -258,10 +258,13 @@ title = "Genotype Stability Across Locations")
 ```
 
 ```{r rankcorr}
-# pairwise rank correlation 
+# pairwise rank correlation of biomass
 cor(rank_wide$WI, rank_wide$NY, method = "spearman", use = "pairwise.complete.obs")
 cor(rank_wide$WI, rank_wide$KS, method = "spearman", use = "pairwise.complete.obs")
 cor(rank_wide$NY, rank_wide$KS, method = "spearman", use = "pairwise.complete.obs")
+# WI:NY -0.2345865
+# WI:KS 0.362406
+# NY:KS -0.09401709
 ```
 
 ```{r kendallW}
