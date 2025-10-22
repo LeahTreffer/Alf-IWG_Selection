@@ -72,30 +72,6 @@ ggplot(aes(x = Entry, y = First_Summer_ALF_Biomass, fill = LOC)) +
        fill = "Location")
 ```
 
-```{r boxplot2}
-# Maturity ratings for alfalfa across locations
-colors <- brewer.pal(n = 3, name = "Set2")  # 3 locations
-
-# order entries by selection category
-data %>%
-  mutate(selected_cat = as.factor(case_when(
-    selected == "selected" ~ "B",
-    selected == "base" ~ "A",
-    TRUE ~ "other"
-  ))) %>%
-  arrange(selected_cat, Entry) %>%  # ensures grouping by selection
-  mutate(Entry = factor(Entry, levels = unique(Entry))) %>%  # lock in order for ggplot
-ggplot(aes(x = Entry, y = First_Summer_Maturity, fill = LOC)) +
-  geom_boxplot(na.rm = TRUE, position = position_dodge(width = 0.8)) +
-  scale_fill_manual(values = colors) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(title = "Alfalfa maturity by Entry and Location",
-       x = "Entry",
-       y = "Maturity (0-9)",
-       fill = "Location")
-```
-
 Histograms - Check Normality and Transform
 
 ```{r hist}
@@ -200,7 +176,7 @@ data_model$LOCserp <- paste0(data_model$LOC,"_",data_model$serpentine)
 data <- merge(data, data_model[,c("LOCserp", "First_Summer_ALF_Height")], by="LOCserp", all.x = TRUE)
 
 # make data frame of normal values
-data2 <- data[,c('LOC', 'Entry', 'Rep', 'selected', 'selection_location', 'First_Summer_ALF_Height', 'First_Summer_IWG_Height_log', 'First_Summer_Maturity', 'First_Yr_Regrowth_Vigor', 'First_Summer_ALF_Biomass_sqrt', 'First_Summer_IWG_Biomass_log', 'First_Summer_Lodging')]
+data2 <- data[,c('LOC', 'Entry', 'Rep', 'selected', 'selection_location', 'selected_type', 'First_Summer_ALF_Height', 'First_Summer_IWG_Height_log', 'First_Summer_Maturity', 'First_Yr_Regrowth_Vigor', 'First_Summer_ALF_Biomass_sqrt', 'First_Summer_IWG_Biomass_log', 'First_Summer_Lodging')]
 ```
 
 Correlation 
@@ -320,7 +296,7 @@ ggplot(ranked, aes(x = LOC, y = rank, group = Entry, color = Entry)) +
   geom_point() +
   scale_y_reverse() +  # rank 1 at top
   theme_minimal() +
-  labs(title = "Alfalfa Entry rankings across locations",
+  labs(title = " ",
        y = "Rank (1 = highest biomass)")
 ```
 

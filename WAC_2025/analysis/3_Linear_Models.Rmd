@@ -29,44 +29,82 @@ data <- read.csv('data/Intermediate/data_shared_across_locations_transformed.csv
 ```
 
 ```{r}
-data2 <- data %>%
-  mutate(selected_cat = as.factor(case_when(
-    selected == "selected" ~ "selected",
-    selected == "base" ~ "base",
-    TRUE ~ "other"
-  )))%>%
-  mutate(selected_cat2 = as.factor(case_when(
-    selection_location == "WI" ~ "selectWI",
-    selection_location == "KS" ~ "select",
-    selection_location == "MN" ~ "select",
-    selected == "base" ~ "base",
-    TRUE ~ "other"
-  )))
+#data2 <- data %>%
+#  mutate(selected_cat = as.factor(case_when(
+#    selected == "selected" ~ "selected",
+#    selected == "base" ~ "base",
+#    TRUE ~ "other"
+#  )))%>%
+#  mutate(selected_cat = as.factor(case_when(
+#   selection_location == "WI" ~ "selectWI",
+#    selection_location == "KS" ~ "select",
+#    selection_location == "MN" ~ "select",
+#    selected == "base" ~ "base",
+#    TRUE ~ "other"
+#  )))
+```
+
+```{r}
+data$LOC <- as.factor(data$LOC)
+data$Entry <- as.factor(data$Entry)
+data$Rep <- as.factor(data$Rep)
+data$selected <- as.factor(data$selected)
+data$selection_location <- as.factor(data$selection_location)
+data$selected_type <- as.factor(data$selected_type)
 ```
 
 Testing significance of entry on first year traits 
 
 ```{r}
 # are entries significantly different in first year summer biomass
-model <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + (1|LOC:Rep), data=data2)
+model <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + (1|LOC:Rep), data=data)
 anova(model)
 #summary(model)
 # Location is significant covariant Pr(>F) = 0.04401
 # When controlling for location, Entry is not significant, although AVC3 had significantly lower biomass than other Entries
+
+### what specific entries are doing well in locations
+# pairwise comparison 
+# Which entries perform significantly differently overall (across all locations)
+emm <- emmeans(model, list(pairwise ~ Entry), adjust = "tukey")
+pairs_df <- as.data.frame(emm[["pairwise differences of Entry"]]) # Extract pairwise results table
+# Keep only significant comparisons (p < 0.05)
+sig_pairs <- pairs_df %>%
+  filter(p.value < 0.05) %>%
+  arrange(p.value)
+# Print nicely formatted table
+kbl(sig_pairs, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
+  kable_classic(full_width = F, html_font = "Helvetica")
+
+# Which entries differ significantly within each location?
+emm_loc <- emmeans(model, list(pairwise ~ Entry|LOC), adjust = "tukey")
+pairs_loc <- as.data.frame(emm_loc[["pairwise differences of Entry | LOC"]]) # Extract pairwise results table
+# Keep only significant comparisons (p < 0.05)
+sig_pairs_loc <- pairs_loc %>%
+  filter(p.value < 0.05) %>%
+  arrange(p.value)
+# Print nicely formatted table
+kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
+  kable_classic(full_width = F, html_font = "Helvetica")
 ```
 
 ```{r}
 # are entries significantly different in first year vigor
-model2 <- lmer(First_Yr_Regrowth_Vigor ~ Entry*LOC + (1|LOC:Rep), data=data2)
+model2 <- lmer(First_Yr_Regrowth_Vigor ~ Entry*LOC + (1|LOC:Rep), data=data)
 anova(model2)
-#summary(model2)
 # Entry and Entry*Location interaction were significant
 # AVC6, IAFAL-C3, Larry15, NY19-45 had lower regrowth vigor
 # WI had significantly lower regrowth vigor
 # AVC11. AVC5, AVC6, IAFAL-C3, IWAF-H-Base, IWAF-H-WI1 interaction with WI was positive
 ```
 
-## Do “selected” alfalfa differ from “base” alfalfa?
+```{r}
+# are entries significantly different in first summer height 
+model3 <- lmer(First_Summer_ALF_Height ~ Entry*LOC + (1|LOC:Rep), data=data)
+anova(model3)
+```
+
+## Do selected alfalfa differ from base alfalfa?
 
 # test whether selection has led to significant phenotypic differences across traits
 
@@ -74,44 +112,88 @@ Biomass
 
 ```{r}
 # do entries selected for intercropping differ than unselected entries
-model3 <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + selected_cat + (1|LOC:Rep), data=data2)
-anova(model3)
-#summary(model3)
-```
-
-```{r}
-# are entries selected for intercropping in Wisconsin different than those selected in other locations
-model4 <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + selected_cat2 + (1|LOC:Rep), data=data2)
+model4 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected*LOC + (1|LOC:Rep), data=data)
 anova(model4)
-#summary(model4)
 ```
 
 ```{r}
 # do entries selected for intercropping differ than unselected entries
-model5 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat + (1|Entry*LOC) + (1|LOC:Rep), data=data2)
-anova(model5)
+model6 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected + (1|Entry*LOC) + (1|LOC:Rep), data=data)
+anova(model6)
 #summary(model5)
 
 # test if selected > base, using post-hoc comparisons
-emmeans(model5, pairwise ~ selected_cat)
+emmeans(model6, pairwise ~ selected)
 ```
-
-tests if selection effects are consistent or location-dependent
 
 ```{r}
-model6 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
-anova(model6)
-emmeans(model6, pairwise ~ selected_cat | LOC)
+# tests if selection effects are consistent or location-dependent
+model7 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected*LOC + (1|Entry) + (1|LOC:Rep), data = data)
+anova(model7)
+emmeans(model7, pairwise ~ selected | LOC)
 ```
+
+```{r}
+# Is the selection location and neighbor significant to entry performance
+model5 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_type*LOC + (1|LOC:Rep), data=data2)
+anova(model5)
+
+# Which entries differ significantly within each location?
+emm_loc <- emmeans(model5, list(pairwise ~ selected_type|LOC), adjust = "tukey")
+pairs_loc <- as.data.frame(emm_loc[["pairwise differences of selected_type | LOC"]]) # Extract pairwise results table
+# Keep only significant comparisons (p < 0.05)
+sig_pairs_loc <- pairs_loc %>%
+  filter(p.value < 0.05) %>%
+  arrange(p.value)
+# Print nicely formatted table
+kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
+  kable_classic(full_width = F, html_font = "Helvetica")
+```
+
+
 
 Regrowth Vigor
 
 tests if selection effects are consistent or location-dependent
 
 ```{r}
-model7 <- lmer(First_Yr_Regrowth_Vigor ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
+# do entries selected for intercropping differ than unselected entries
+model8 <- lmer(First_Yr_Regrowth_Vigor ~ selected*LOC + (1|LOC:Rep), data=data)
+anova(model8)
+```
+
+```{r}
+# do entries selected for intercropping differ than unselected entries
+model6 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected + (1|Entry*LOC) + (1|LOC:Rep), data=data)
+anova(model6)
+#summary(model5)
+
+# test if selected > base, using post-hoc comparisons
+emmeans(model6, pairwise ~ selected)
+```
+
+```{r}
+# tests if selection effects are consistent or location-dependent
+model7 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected*LOC + (1|Entry) + (1|LOC:Rep), data = data)
 anova(model7)
-emmeans(model7, pairwise ~ selected_cat | LOC)
+emmeans(model7, pairwise ~ selected | LOC)
+```
+
+```{r}
+# Is the selection location and neighbor significant to entry performance
+model5 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_type*LOC + (1|LOC:Rep), data=data2)
+anova(model5)
+
+# Which entries differ significantly within each location?
+emm_loc <- emmeans(model5, list(pairwise ~ selected_type|LOC), adjust = "tukey")
+pairs_loc <- as.data.frame(emm_loc[["pairwise differences of selected_type | LOC"]]) # Extract pairwise results table
+# Keep only significant comparisons (p < 0.05)
+sig_pairs_loc <- pairs_loc %>%
+  filter(p.value < 0.05) %>%
+  arrange(p.value)
+# Print nicely formatted table
+kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
+  kable_classic(full_width = F, html_font = "Helvetica")
 ```
 
 Summer Maturity 
@@ -121,17 +203,17 @@ tests if selection effects are consistent or location-dependent
 Could be interesting if selection for delayed maturity (matching delayed summer harvest) has occured
 
 ```{r}
-model8 <- lmer(First_Summer_Maturity ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
-anova(model8)
-emmeans(model8, pairwise ~ selected_cat | LOC)
+model9 <- lmer(First_Summer_Maturity ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
+anova(model9)
+emmeans(model9, pairwise ~ selected_cat | LOC)
 ```
 
 Summer Height
 
 ```{r}
-model9 <- lmer(First_Summer_Alfalfa_Height ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
-anova(model9)
-emmeans(model9, pairwise ~ selected_cat | LOC)
+model10 <- lmer(First_Summer_Alfalfa_Height ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
+anova(model10)
+emmeans(model10, pairwise ~ selected_cat | LOC)
 ```
 
 ## Likelihood ratio test
@@ -139,9 +221,9 @@ emmeans(model9, pairwise ~ selected_cat | LOC)
 ```{r}
 # determine whether being selected for intercropping is statistically significant
 # is their a significant difference between the two models in the liklihood of observing given data given normal distribution 
-model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected*LOC + (1 | Entry) + (1|LOC:Rep), data=data2) # alternate hypothesis : intercropping selection influences biomass
+model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat*LOC + (1 | Entry) + (1|LOC:Rep), data=data2, REML=FALSE) # alternate hypothesis : intercropping selection influences biomass
 
-model_H0 <- lmer(First_Summer_ALF_Biomass_sqrt ~ 1 + (1 | Entry) + (1|LOC:Rep), data=data2) # null hypothesis : selection doesn't matter to biomass
+model_H0 <- lmer(First_Summer_ALF_Biomass_sqrt ~ 1 + (1 | Entry) + (1|LOC:Rep), data=data2 , REML=FALSE) # null hypothesis : selection doesn't matter to biomass
 
 anova(model_H0, model_Ha)
 # Pr(>Chisq) = 0.08768
@@ -157,13 +239,13 @@ LRT
 # Pr(>Chisq): p-value associated with likelihood ratio test
 ## p-value < 0.05 : reject null hypothesis. Alternative model better explains data
 
-emmeans(model_Ha, pairwise ~ selected)
-plot(emmeans(model_Ha, ~ selected))
+emmeans(model_Ha, pairwise ~ selected_cat)
+plot(emmeans(model_Ha, ~ selected_cat))
 
 ```
 
 ```{r}
-# determine whether being selected for intercropping is statistically significant
+# determine whether being selected for intercropping in WI is statistically significant
 # is their a significant difference between the two models in the liklihood of observing given data given normal distribution 
 model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat2 + (1 | Entry) + (1|LOC:Rep), data=data2) # alternate hypothesis : intercropping selection influences biomass
 
@@ -177,6 +259,9 @@ LRT
 # Chisq : likelihood ratio test statistic (difference in log-likelihood between models)
 # Pr(>Chisq): p-value associated with likelihood ratio test
 ## p-value < 0.05 : reject null hypothesis. Alternative model better explains data
+
+emmeans(model_Ha, pairwise ~ selected_cat2)
+plot(emmeans(model_Ha, ~ selected_cat2))
 ```
 
 ```{r}

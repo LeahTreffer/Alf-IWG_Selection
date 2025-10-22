@@ -60,7 +60,8 @@ colnames(combined)
 combined$LOC <- as.factor(combined$LOC)
 combined$Entry <- as.factor(combined$Entry)
 combined$Rep <- as.factor(combined$Rep)
-combined$selected <- as.character(combined$selected)
+combined$selected <- as.factor(combined$selected)
+combined$selected_type <- as.factor(combined$selected_type)
 combined$selection_location <- as.factor(combined$selection_location)
 ```
 
