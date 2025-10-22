@@ -18,6 +18,7 @@ library("PerformanceAnalytics")
 library(dplyr)
 library(broom.mixed)
 library(emmeans)
+library(ordinal)
 ```
 
 ```{r setup, include=FALSE}
@@ -53,7 +54,7 @@ data$selection_location <- as.factor(data$selection_location)
 data$selected_type <- as.factor(data$selected_type)
 ```
 
-Testing significance of entry on first year traits 
+## Testing significance of Entry on first year traits 
 
 ```{r}
 # are entries significantly different in first year summer biomass
@@ -89,20 +90,50 @@ kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tuke
 ```
 
 ```{r}
-# are entries significantly different in first year vigor
-model2 <- lmer(First_Yr_Regrowth_Vigor ~ Entry*LOC + (1|LOC:Rep), data=data)
+# are entries significantly different in first summer height 
+model2 <- lmer(First_Summer_ALF_Height ~ Entry*LOC + (1|LOC:Rep), data=data)
 anova(model2)
-# Entry and Entry*Location interaction were significant
-# AVC6, IAFAL-C3, Larry15, NY19-45 had lower regrowth vigor
-# WI had significantly lower regrowth vigor
-# AVC11. AVC5, AVC6, IAFAL-C3, IWAF-H-Base, IWAF-H-WI1 interaction with WI was positive
 ```
 
 ```{r}
-# are entries significantly different in first summer height 
-model3 <- lmer(First_Summer_ALF_Height ~ Entry*LOC + (1|LOC:Rep), data=data)
-anova(model3)
+# are entries significantly different in first year vigor
+# cumulative link mixed model (CLMM) for ordered but not continuous data (Ordinal categorical response)
+data$Alfalfa_Regrowth <- ordered(data$Alfalfa_Regrowth, levels = c(0,1,2,3,4,5)) # set as ordinal and define categories 
+model3 <- clmm(Alfalfa_Regrowth ~ Entry + LOC + (1|LOC:Rep), data=data)
+summary(model3)
+
+# Which entries differ significantly within each location?
+emm_loc <- emmeans(model3, list(pairwise ~ Entry), adjust = "tukey")
+pairs_loc <- as.data.frame(emm_loc[["pairwise differences of Entry"]]) # Extract pairwise results table
+# Keep only significant comparisons (p < 0.05)
+sig_pairs_loc <- pairs_loc %>%
+  filter(p.value < 0.05) %>%
+  arrange(p.value)
+# Print nicely formatted table
+kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
+  kable_classic(full_width = F, html_font = "Helvetica")
 ```
+
+```{r}
+# are entries significantly different in first year maturity
+# cumulative link mixed model (CLMM) for ordered but not continuous data (Ordinal categorical response)
+data$Alfalfa_Maturity <- ordered(data$Alfalfa_Maturity, levels = c(0,1,2,3,4,5,6,7,8,9)) # set as ordinal and define categories 
+model4 <- clmm(Alfalfa_Maturity ~ Entry*LOC + (1|LOC:Rep), data=data)
+summary(model4)
+
+# Which entries differ significantly within each location?
+emm_loc <- emmeans(model4, list(pairwise ~ Entry|LOC), adjust = "tukey")
+pairs_loc <- as.data.frame(emm_loc[["pairwise differences of Entry | LOC"]]) # Extract pairwise results table
+# Keep only significant comparisons (p < 0.05)
+sig_pairs_loc <- pairs_loc %>%
+  filter(p.value < 0.05) %>%
+  arrange(p.value)
+# Print nicely formatted table
+kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
+  kable_classic(full_width = F, html_font = "Helvetica")
+```
+
+
 
 ## Do selected alfalfa differ from base alfalfa?
 
@@ -112,8 +143,8 @@ Biomass
 
 ```{r}
 # do entries selected for intercropping differ than unselected entries
-model4 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected*LOC + (1|LOC:Rep), data=data)
-anova(model4)
+model5 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected*LOC + (1|LOC:Rep), data=data)
+anova(model5)
 ```
 
 ```{r}
@@ -135,8 +166,8 @@ emmeans(model7, pairwise ~ selected | LOC)
 
 ```{r}
 # Is the selection location and neighbor significant to entry performance
-model5 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_type*LOC + (1|LOC:Rep), data=data2)
-anova(model5)
+model8 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_type*LOC + (1|LOC:Rep), data=data2)
+anova(model8)
 
 # Which entries differ significantly within each location?
 emm_loc <- emmeans(model5, list(pairwise ~ selected_type|LOC), adjust = "tukey")
@@ -150,50 +181,40 @@ kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tuke
   kable_classic(full_width = F, html_font = "Helvetica")
 ```
 
+```{r}
+AIC(model5, model6, model7, model8)
+```
 
-
-Regrowth Vigor
+Plant Height
 
 tests if selection effects are consistent or location-dependent
 
 ```{r}
 # do entries selected for intercropping differ than unselected entries
-model8 <- lmer(First_Yr_Regrowth_Vigor ~ selected*LOC + (1|LOC:Rep), data=data)
-anova(model8)
+model9 <- lmer(First_Summer_ALF_Height ~ selected*LOC + (1|LOC:Rep), data=data)
+anova(model9)
 ```
 
 ```{r}
 # do entries selected for intercropping differ than unselected entries
-model6 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected + (1|Entry*LOC) + (1|LOC:Rep), data=data)
-anova(model6)
-#summary(model5)
+model10 <- lmer(First_Summer_ALF_Height ~ selected + (1|Entry*LOC) + (1|LOC:Rep), data=data)
+anova(model10)
 
 # test if selected > base, using post-hoc comparisons
-emmeans(model6, pairwise ~ selected)
+#emmeans(model6, pairwise ~ selected)
 ```
 
 ```{r}
 # tests if selection effects are consistent or location-dependent
-model7 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected*LOC + (1|Entry) + (1|LOC:Rep), data = data)
-anova(model7)
-emmeans(model7, pairwise ~ selected | LOC)
+model11 <- lmer(First_Summer_ALF_Height ~ selected*LOC + (1|Entry) + (1|LOC:Rep), data = data)
+anova(model11)
+#emmeans(model7, pairwise ~ selected | LOC)
 ```
 
 ```{r}
 # Is the selection location and neighbor significant to entry performance
-model5 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_type*LOC + (1|LOC:Rep), data=data2)
-anova(model5)
-
-# Which entries differ significantly within each location?
-emm_loc <- emmeans(model5, list(pairwise ~ selected_type|LOC), adjust = "tukey")
-pairs_loc <- as.data.frame(emm_loc[["pairwise differences of selected_type | LOC"]]) # Extract pairwise results table
-# Keep only significant comparisons (p < 0.05)
-sig_pairs_loc <- pairs_loc %>%
-  filter(p.value < 0.05) %>%
-  arrange(p.value)
-# Print nicely formatted table
-kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
-  kable_classic(full_width = F, html_font = "Helvetica")
+model12 <- lmer(First_Summer_ALF_Height ~ selected_type*LOC + (1|LOC:Rep), data=data)
+anova(model12)
 ```
 
 Summer Maturity 
@@ -203,18 +224,11 @@ tests if selection effects are consistent or location-dependent
 Could be interesting if selection for delayed maturity (matching delayed summer harvest) has occured
 
 ```{r}
-model9 <- lmer(First_Summer_Maturity ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
-anova(model9)
-emmeans(model9, pairwise ~ selected_cat | LOC)
+model13 <- lmer(First_Summer_Maturity ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data)
+anova(model13)
+emmeans(model13, pairwise ~ selected_cat | LOC)
 ```
 
-Summer Height
-
-```{r}
-model10 <- lmer(First_Summer_Alfalfa_Height ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data2)
-anova(model10)
-emmeans(model10, pairwise ~ selected_cat | LOC)
-```
 
 ## Likelihood ratio test
 
