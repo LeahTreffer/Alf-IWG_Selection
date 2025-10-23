@@ -4,9 +4,9 @@ library(lmtest)
 library(dplyr)
 library(kableExtra)
 
-model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat*LOC + (1 | Entry) + (1|LOC:Rep), data=data2, REML=FALSE) # alternate hypothesis : intercropping selection influences biomass
+model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected*LOC + (1 | Entry) + (1|LOC:Rep), data=data, REML=FALSE) # alternate hypothesis : intercropping selection influences biomass
 
-model_H0 <- lmer(First_Summer_ALF_Biomass_sqrt ~ 1 + (1 | Entry) + (1|LOC:Rep), data=data2, REML=FALSE) # null hypothesis : selection doesn't matter to biomass
+model_H0 <- lmer(First_Summer_ALF_Biomass_sqrt ~ 1 + (1 | Entry) + (1|LOC:Rep), data=data, REML=FALSE) # null hypothesis : selection doesn't matter to biomass
 
 anova(model_H0, model_Ha)
 # Pr(>Chisq) = 0.08768
@@ -16,8 +16,8 @@ anova(model_H0, model_Ha)
 LRT <- lrtest(model_H0, model_Ha)
 LRT
 
-emmeans(model_Ha, pairwise ~ selected_cat)
-plot(emmeans(model_Ha, ~ selected_cat))
+emmeans(model_Ha, pairwise ~ selected)
+plot(emmeans(model_Ha, ~ selected))
 
 # Format the table
 LRT_table <- LRT %>%
@@ -36,7 +36,7 @@ kbl(LRT_table, digits = 15, caption = "Likelihood Ratio Test comparing null and 
 
 library(emmeans)
 
-emm <- emmeans(model_Ha, ~ selected_cat)
+emm <- emmeans(model_Ha, ~ selected)
 
 emm_table <- as.data.frame(emm)
 
@@ -48,20 +48,27 @@ library(ggplot2)
 
 emm_df <- as.data.frame(emm)
 
-ggplot(emm_df, aes(x = selected_cat, y = emmean, fill = selected_cat)) +
+ggplot(emm_df, aes(x = selected, y = emmean, fill = selected)) +
   geom_bar(stat = "identity", color = "black", width = 0.6) +
-  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.2, linewidth = 0.8) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.1, linewidth = 0.6) +
   labs(
-    title = "Estimated Marginal Means of First-Summer Alfalfa Biomass",
-    subtitle = "Selection for intercropping does not significantly affect biomass",
+    title = "Estimated Marginal Means of Year 1 Summer Alfalfa Biomass",
     x = "Selection Category",
     y = "Biomass sqrt(kg/ha)"
   ) +
-  scale_fill_manual(values = c("#a6cee3", "#1f78b4", "orange")) +
-  theme_minimal(base_size = 14) +
+  scale_fill_manual(values = c("darkgreen", "purple", "lightgreen")) +
+  theme_minimal(base_size = 16) +
   theme(
     legend.position = "none",
     plot.title = element_text(face = "bold"),
-    axis.text = element_text(color = "black")
+    axis.text.x = element_text(size = 22, color = "black"),  # larger tick labels
+    axis.text.y = element_text(size = 18, color = "black"),  # optional
+    axis.title.x = element_text(size = 18),  # keep x-axis label normal
+    axis.title.y = element_text(size = 18),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
   )
 
+# "darkgreen", "purple", "lightgreen" 
+
+# "#a6cee3", "#1f78b4", "orange"
