@@ -19,6 +19,7 @@ library(dplyr)
 library(broom.mixed)
 library(emmeans)
 library(ordinal)
+library(kableExtra)
 ```
 
 ```{r setup, include=FALSE}
@@ -74,7 +75,7 @@ sig_pairs <- pairs_df %>%
   filter(p.value < 0.05) %>%
   arrange(p.value)
 # Print nicely formatted table
-kbl(sig_pairs, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
+kbl(sig_pairs, digits = 5, caption = "Significant pairwise comparisons of Entry (Tukey-adjusted) <br> biomass ~ Entry*Location + (1|Location)") %>%
   kable_classic(full_width = F, html_font = "Helvetica")
 
 # Which entries differ significantly within each location?
@@ -85,7 +86,7 @@ sig_pairs_loc <- pairs_loc %>%
   filter(p.value < 0.05) %>%
   arrange(p.value)
 # Print nicely formatted table
-kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
+kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons of GxE (Tukey-adjusted) <br> biomass ~ Entry*Location + (1|Location)") %>%
   kable_classic(full_width = F, html_font = "Helvetica")
 ```
 
@@ -224,9 +225,12 @@ tests if selection effects are consistent or location-dependent
 Could be interesting if selection for delayed maturity (matching delayed summer harvest) has occured
 
 ```{r}
-model13 <- lmer(First_Summer_Maturity ~ selected_cat * LOC + (1|LOC:Rep) + (1|Entry), data = data)
-anova(model13)
-emmeans(model13, pairwise ~ selected_cat | LOC)
+model13 <- clmm(Alfalfa_Maturity ~ selected * LOC + (1|LOC:Rep) + (1|Entry), data = data)
+model13_null <- clmm(Alfalfa_Maturity ~ 1 + (1|LOC:Rep) + (1|Entry), data = data)
+anova(model13, model13_null)
+emmeans(model13, pairwise ~ selected | LOC)
+summary(model13)
+# significant LOC effect (NY and WI sig different)
 ```
 
 
@@ -292,23 +296,23 @@ plot(emmeans(model_Ha, ~ selected_cat2))
 
 # Manually 
 # t = (x_bar1 - x_bar2)/ sqrt(sd^2(1/n1 + 1/n2))
-x_bar1 <- data2 %>%
+x_bar1 <- data %>%
   filter(Entry == "AVC1") %>%
   summarise(mean_value = mean(First_Summer_ALF_Biomass_sqrt, na.rm = TRUE)) %>%
   pull(mean_value)
-x_bar2 <- data2 %>%
+x_bar2 <- data %>%
   filter(Entry == "AVC6") %>%
   summarise(mean_value = mean(First_Summer_ALF_Biomass_sqrt, na.rm = TRUE)) %>%
   pull(mean_value)
-sd <- data2 %>%
+sd <- data %>%
   filter(Entry %in% c("AVC1", "AVC6")) %>%
   summarise(sd_value = sd(First_Summer_ALF_Biomass_sqrt, na.rm = TRUE)) %>%
   pull(sd_value)
-n1 <- data2 %>%
+n1 <- data %>%
   filter(Entry == "AVC1", !is.na(First_Summer_ALF_Biomass_sqrt)) %>%
   summarise(n = n()) %>%
   pull(n)
-n2 <- data2 %>%
+n2 <- data %>%
   filter(Entry == "AVC6", !is.na(First_Summer_ALF_Biomass_sqrt)) %>%
   summarise(n = n()) %>%
   pull(n)
@@ -319,25 +323,25 @@ t = (x_bar1 - x_bar2)/ sqrt(sd^2 * (1/n1 + 1/n2))
 
 # t-test function 
 t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
-       data = filter(data2, Entry %in% c("AVC1", "AVC6")),
+       data = filter(data, Entry %in% c("AVC1", "AVC6")),
        var.equal = TRUE)
 t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
-       data = filter(data2, Entry %in% c("AVC2", "AVC7")),
+       data = filter(data, Entry %in% c("AVC2", "AVC7")),
        var.equal = TRUE)
 t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
-       data = filter(data2, Entry %in% c("AVC3", "AVC9")),
+       data = filter(data, Entry %in% c("AVC3", "AVC9")),
        var.equal = TRUE)
 t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
-       data = filter(data2, Entry %in% c("AVC4", "AVC11")),
+       data = filter(data, Entry %in% c("AVC4", "AVC11")),
        var.equal = TRUE)
 t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
-       data = filter(data2, Entry %in% c("AVC5", "AVC14")),
+       data = filter(data, Entry %in% c("AVC5", "AVC14")),
        var.equal = TRUE)
 t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
-       data = filter(data2, Entry %in% c("IWAF-L-Base", "IWAF-L-WI1")),
+       data = filter(data, Entry %in% c("IWAF-L-Base", "IWAF-L-WI1")),
        var.equal = TRUE)
 t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
-       data = filter(data2, Entry %in% c("IWAF-H-Base", "IWAF-H-WI1")),
+       data = filter(data, Entry %in% c("IWAF-H-Base", "IWAF-H-WI1")),
        var.equal = TRUE)
 ```
 
@@ -345,16 +349,16 @@ t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
 # Are any populations selected from the base population different between the base and selected
 # equal variance t-test
 t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
-       data = filter(data2, Entry %in% c("IWAF-L-Base", "IWAF-L-KS1")),
+       data = filter(data, Entry %in% c("IWAF-L-Base", "IWAF-L-KS1")),
        var.equal = TRUE)
 t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
-       data = filter(data2, Entry %in% c("IWAF-H-Base", "IWAF-H-KS2")), # only exists in KS
+       data = filter(data, Entry %in% c("IWAF-H-Base", "IWAF-H-KS2")), # only exists in KS
        var.equal = TRUE)
 t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
-       data = filter(data2, Entry %in% c("IWAF-L-Base", "IWAF-L-MN1")),
+       data = filter(data, Entry %in% c("IWAF-L-Base", "IWAF-L-MN1")),
        var.equal = TRUE)
 t.test(First_Summer_ALF_Biomass_sqrt ~ Entry,
-       data = filter(data2, Entry %in% c("IWAF-H-Base", "IWAF-H-MN1")),
+       data = filter(data, Entry %in% c("IWAF-H-Base", "IWAF-H-MN1")),
        var.equal = TRUE)
 ```
 

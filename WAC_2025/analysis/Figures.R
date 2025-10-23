@@ -72,3 +72,126 @@ ggplot(emm_df, aes(x = selected, y = emmean, fill = selected)) +
 # "darkgreen", "purple", "lightgreen" 
 
 # "#a6cee3", "#1f78b4", "orange"
+
+
+
+# Box plot with sig letters for ordinal categorical linear model of Regrowth Vigor 
+
+# model3 <- clmm(Alfalfa_Regrowth ~ Entry + LOC + (1|LOC:Rep), data = data)
+
+emm <- emmeans(model3, list(pairwise ~ Entry), adjust = "tukey")
+
+cld_df <- multcomp::cld(emm,
+                        adjust = "sidak",   # sidak auto-applied for emmeans
+                        Letters = letters,
+                        alpha = 0.05) %>%
+  as.data.frame() %>%
+  mutate(.group = gsub(" ", "", .group))  # clean extra spaces
+
+# Compute y position for letters above boxes
+# (use max of Alfalfa_Regrowth per Entry)
+y_positions <- data %>%
+  group_by(Entry) %>%
+  summarise(
+    y_pos = if (all(is.na(Alfalfa_Regrowth))) NA_real_
+    else max(as.numeric(Alfalfa_Regrowth), na.rm = TRUE) + 0.3,
+    .groups = "drop"
+  )
+
+
+data <- data %>%
+  mutate(selection_cat = if_else(
+    is.na(selected_type) | selected_type == "",
+    selected,
+    selected_type
+  ))
+
+# Merge y positions with letters
+cld_plot_df <- left_join(
+  cld_df,
+  data %>% distinct(Entry, selection_cat),
+  by = "Entry"
+)
+
+cld_plot_df <- left_join(
+  cld_plot_df,
+  y_positions %>% distinct(Entry, y_pos),
+  by = "Entry"
+)
+
+
+# Boxplot with significance letters
+ggplot(data, aes(x = Entry, y = as.numeric(Alfalfa_Regrowth), fill = selection_cat)) +
+  geom_boxplot(color = "black", width = 0.6) +
+  geom_text(
+    data = cld_plot_df,
+    aes(x = Entry, y = y_pos, label = .group),
+    angle = 45,
+    size = 5,
+    fontface = "bold"
+  ) +
+  labs(
+    x = "Selection Category",
+    y = "Regrowth Vigor (0–5)",
+    title = "Regrowth Vigor by Entry across Locations"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold")
+  )
+
+
+
+
+
+
+
+library(ggplot2)
+library(dplyr)
+
+# 1. Order entries by significance letter
+cld_plot_df <- cld_plot_df %>%
+  arrange(.group) %>%
+  mutate(Entry = factor(Entry, levels = unique(Entry)))
+
+data <- data %>%
+  mutate(Entry = factor(Entry, levels = levels(cld_plot_df$Entry)))  # match factor order
+
+# 2. Define custom colors for selection_cat
+custom_colors <- c(
+  "base" = "darkgreen",   # replace Type1/Type2/Type3 with actual values in your data
+  "other" = "purple",
+  "WI_IWG" = "lightgreen",
+  "WI_Maize" = "lightgreen",
+  "MN_IWG" = "lightgreen",
+  "MN_Maize" = "lightgreen",
+  "KS_IWG" = "lightgreen"
+)
+
+# 3. Plot
+ggplot(data, aes(x = Entry, y = as.numeric(Alfalfa_Regrowth), fill = selection_cat)) +
+  geom_boxplot(color = "black", width = 0.6) +
+  geom_text(
+    data = cld_plot_df,
+    aes(x = Entry, y = y_pos, label = .group),
+    angle = 45,
+    size = 5,
+    fontface = "bold"
+  ) +
+  scale_fill_manual(name = "Selection Category",
+                    values = custom_colors,
+                    labels = c("Base", "Other", "Selected")) +
+  labs(
+    x = "Selection Category",
+    y = "Regrowth Vigor (0–5)",
+    title = "Regrowth Vigor by Entry across Locations"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+#    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold")
+  )
+

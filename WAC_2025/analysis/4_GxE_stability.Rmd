@@ -173,7 +173,7 @@ traits <- c("First_Summer_Alfalfa_Height", "First_Summer_Maturity", "First_Yr_Re
 
 results <- lapply(traits, function(trait) {
   model <- lmer(as.formula(paste(trait, "~ (1|LOC) + (1|LOC:Rep) + (1|Entry) + (1|Entry:LOC)")), 
-                data = data2)
+                data = data)
   
   singular <- isSingular(model, tol = 1e-4)
   
