@@ -20,6 +20,8 @@ library(broom.mixed)
 library(emmeans)
 library(ordinal)
 library(kableExtra)
+library(tibble)
+library(flextable)
 ```
 
 ```{r setup, include=FALSE}
@@ -60,10 +62,14 @@ data$selected_type <- as.factor(data$selected_type)
 ```{r}
 # are entries significantly different in first year summer biomass
 model <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + (1|LOC:Rep), data=data)
-anova(model)
+aov.table <- anova(model)
 #summary(model)
 # Location is significant covariant Pr(>F) = 0.04401
 # When controlling for location, Entry is not significant, although AVC3 had significantly lower biomass than other Entries
+table = flextable(data = aov.table %>%
+                    rownames_to_column(" ")) 
+
+bold(table, bold = TRUE, part = "header")
 
 ### what specific entries are doing well in locations
 # pairwise comparison 
@@ -100,8 +106,13 @@ anova(model2)
 # are entries significantly different in first year vigor
 # cumulative link mixed model (CLMM) for ordered but not continuous data (Ordinal categorical response)
 data$Alfalfa_Regrowth <- ordered(data$Alfalfa_Regrowth, levels = c(0,1,2,3,4,5)) # set as ordinal and define categories 
-model3 <- clmm(Alfalfa_Regrowth ~ Entry + LOC + (1|LOC:Rep), data=data)
+model3 <- clmm(Alfalfa_Regrowth ~ Entry * LOC + (1|LOC:Rep), data=data)
 summary(model3)
+aov_clmm_talbe <- Anova.clmm(model3, type = "II")
+
+table = flextable(data = aov_clmm_talbe %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
 
 # Which entries differ significantly within each location?
 emm_loc <- emmeans(model3, list(pairwise ~ Entry), adjust = "tukey")
@@ -121,6 +132,12 @@ kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tuke
 data$Alfalfa_Maturity <- ordered(data$Alfalfa_Maturity, levels = c(0,1,2,3,4,5,6,7,8,9)) # set as ordinal and define categories 
 model4 <- clmm(Alfalfa_Maturity ~ Entry*LOC + (1|LOC:Rep), data=data)
 summary(model4)
+aov_clmm_table <- Anova.clmm(model4, type = "II")
+
+table = flextable(data = aov_clmm_table %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
 
 # Which entries differ significantly within each location?
 emm_loc <- emmeans(model4, list(pairwise ~ Entry|LOC), adjust = "tukey")
@@ -167,8 +184,11 @@ emmeans(model7, pairwise ~ selected | LOC)
 
 ```{r}
 # Is the selection location and neighbor significant to entry performance
-model8 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_type*LOC + (1|LOC:Rep), data=data2)
-anova(model8)
+model8 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_type*LOC + (1|LOC:Rep), data=data)
+aov_select_table <- anova(model8)
+table = flextable(data = aov_select_table %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
 
 # Which entries differ significantly within each location?
 emm_loc <- emmeans(model5, list(pairwise ~ selected_type|LOC), adjust = "tukey")
@@ -225,14 +245,37 @@ tests if selection effects are consistent or location-dependent
 Could be interesting if selection for delayed maturity (matching delayed summer harvest) has occured
 
 ```{r}
-model13 <- clmm(Alfalfa_Maturity ~ selected * LOC + (1|LOC:Rep) + (1|Entry), data = data)
-model13_null <- clmm(Alfalfa_Maturity ~ 1 + (1|LOC:Rep) + (1|Entry), data = data)
-anova(model13, model13_null)
-emmeans(model13, pairwise ~ selected | LOC)
+model13 <- clmm(Alfalfa_Maturity ~ selected_type * LOC + (1|LOC:Rep) + (1|Entry), data = data)
 summary(model13)
-# significant LOC effect (NY and WI sig different)
+aov_clmm_talbe <- Anova.clmm(model13, type = "II")
+
+table = flextable(data = aov_clmm_talbe %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
 ```
 
+Regrowth Vigor
+
+```{r}
+model14 <- clmm(Alfalfa_Regrowth ~ selected_type * LOC + (1|LOC:Rep) + (1|Entry), data = data)
+summary(model14)
+aov_clmm_table <- Anova.clmm(model14, type = "III")
+
+table = flextable(data = aov_clmm_table %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
+
+model15 <- lmer(First_Yr_Regrowth_Vigor ~ selected_type * LOC + (1|LOC:Rep) + (1|Entry), data = data)
+summary(model14)
+aov_clmm_table <- Anova.clmm(model14, type = "III")
+
+table = flextable(data = aov_clmm_table %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
+```
 
 ## Likelihood ratio test
 
