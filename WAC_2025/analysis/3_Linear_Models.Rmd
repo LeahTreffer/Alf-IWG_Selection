@@ -22,6 +22,7 @@ library(ordinal)
 library(kableExtra)
 library(tibble)
 library(flextable)
+library(RVAideMemoire)
 ```
 
 ```{r setup, include=FALSE}
@@ -70,6 +71,11 @@ table = flextable(data = aov.table %>%
                     rownames_to_column(" ")) 
 
 bold(table, bold = TRUE, part = "header")
+# shorter table 
+table = flextable(data = aov.table %>%
+                    select(NumDF, `Pr(>F)`) %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
 
 ### what specific entries are doing well in locations
 # pairwise comparison 
@@ -107,15 +113,15 @@ anova(model2)
 # cumulative link mixed model (CLMM) for ordered but not continuous data (Ordinal categorical response)
 data$Alfalfa_Regrowth <- ordered(data$Alfalfa_Regrowth, levels = c(0,1,2,3,4,5)) # set as ordinal and define categories 
 model3 <- clmm(Alfalfa_Regrowth ~ Entry * LOC + (1|LOC:Rep), data=data)
-summary(model3)
 aov_clmm_talbe <- Anova.clmm(model3, type = "II")
 
 table = flextable(data = aov_clmm_talbe %>%
+      mutate(`Pr(>Chisq)` = formatC(`Pr(>Chisq)`, format = "e", digits = 2)) %>% 
                     rownames_to_column(" ")) 
 bold(table, bold = TRUE, part = "header")
 
 # Which entries differ significantly within each location?
-emm_loc <- emmeans(model3, list(pairwise ~ Entry), adjust = "tukey")
+emm_loc <- emmeans(model3, list(pairwise ~ Entry | LOC), adjust = "tukey")
 pairs_loc <- as.data.frame(emm_loc[["pairwise differences of Entry"]]) # Extract pairwise results table
 # Keep only significant comparisons (p < 0.05)
 sig_pairs_loc <- pairs_loc %>%
@@ -184,19 +190,48 @@ emmeans(model7, pairwise ~ selected | LOC)
 
 ```{r}
 # Is the selection location and neighbor significant to entry performance
-model8 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_type*LOC + (1|LOC:Rep), data=data)
+
+data <- data %>%
+  mutate(sel_base = if_else(
+    Entry %in% c("IWAF-L-Base", "IWAF-H-Base"),
+    "base_IWG",
+    selected
+  ))%>%
+  mutate(sel_base2 = if_else(
+    sel_base %in% c("base"), "base_Maize", sel_base
+  ))%>%
+  mutate(selection_cat = if_else(
+    is.na(selected_type) | selected_type == "",
+    sel_base2,
+    selected_type
+  ))
+
+data$selection_cat <- as.factor(data$selection_cat)
+
+model8 <- lmer(First_Summer_ALF_Biomass_sqrt ~ selection_cat*LOC + (1|Entry) (1|LOC:Rep), data=data)
 aov_select_table <- anova(model8)
 table = flextable(data = aov_select_table %>%
                     rownames_to_column(" ")) 
 bold(table, bold = TRUE, part = "header")
 
+table = flextable(data = aov_select_table %>%
+                    select(NumDF, `Pr(>F)`) %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
 # Which entries differ significantly within each location?
-emm_loc <- emmeans(model5, list(pairwise ~ selected_type|LOC), adjust = "tukey")
+emm_loc <- emmeans(model8, list(pairwise ~ selected_type|LOC), adjust = "tukey")
 pairs_loc <- as.data.frame(emm_loc[["pairwise differences of selected_type | LOC"]]) # Extract pairwise results table
 # Keep only significant comparisons (p < 0.05)
 sig_pairs_loc <- pairs_loc %>%
   filter(p.value < 0.05) %>%
   arrange(p.value)
+# shorten
+sig_pairs_loc <- pairs_loc %>%
+  filter(p.value < 0.05) %>%
+  arrange(p.value)%>%
+  select(`2`, LOC, p.value)%>%
+  rename(" " = `2`)
 # Print nicely formatted table
 kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
   kable_classic(full_width = F, html_font = "Helvetica")
@@ -258,7 +293,7 @@ bold(table, bold = TRUE, part = "header")
 Regrowth Vigor
 
 ```{r}
-model14 <- clmm(Alfalfa_Regrowth ~ selected_type * LOC + (1|LOC:Rep) + (1|Entry), data = data)
+model14 <- clmm(Alfalfa_Regrowth ~ selection_cat * LOC + (1|Entry) + (1|LOC:Rep), data = data)
 summary(model14)
 aov_clmm_table <- Anova.clmm(model14, type = "III")
 
@@ -275,6 +310,118 @@ table = flextable(data = aov_clmm_table %>%
                     rownames_to_column(" ")) 
 bold(table, bold = TRUE, part = "header")
 
+
+# are entries significantly different in first year vigor
+# cumulative link mixed model (CLMM) for ordered but not continuous data (Ordinal categorical response)
+data$Alfalfa_Regrowth <- ordered(data$Alfalfa_Regrowth, levels = c(0,1,2,3,4,5)) # set as ordinal and define categories 
+model3 <- clmm(Alfalfa_Regrowth ~ Entry * LOC + (1|LOC:Rep), data=data)
+aov_clmm_talbe <- Anova.clmm(model3, type = "II")
+
+table = flextable(data = aov_clmm_talbe %>%
+      mutate(`Pr(>Chisq)` = formatC(`Pr(>Chisq)`, format = "e", digits = 2)) %>% 
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
+```
+
+
+# selection category might only have two entries within a category
+# what about more general categories?
+
+# neighbor selection 
+
+```{r}
+data <- data %>%
+  mutate(sel_cat2 = case_when(
+    selection_cat == "other" ~ "other",
+    selection_cat %in% c("WI_IWG", "MN_IWG", "KS_IWG") ~ "IWG",
+    selection_cat %in% c("WI_Maize", "MN_Maize") ~ "Maize",
+    selection_cat == "base_Maize" ~ "base_Maize",
+    selection_cat == "base_IWG" ~ "base_IWG"
+  ))
+
+data$sel_cat2 <- as.factor(data$sel_cat2)
+unique(data$sel_cat2)
+
+model16 <- lmer(First_Summer_ALF_Biomass_sqrt ~ sel_cat2*LOC + (1|Entry) + (1|LOC:Rep), data=data)
+aov_select_table <- anova(model16)
+table = flextable(data = aov_select_table %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
+table = flextable(data = aov_select_table %>%
+                    dplyr::select(NumDF, `Pr(>F)`) %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
+model17 <- clmm(Alfalfa_Regrowth ~ sel_cat2 * LOC + (1|Entry) + (1|LOC:Rep), data = data)
+summary(model17)
+aov_clmm_table <- Anova.clmm(model17, type = "III")
+
+table = flextable(data = aov_clmm_table %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
+
+```
+
+# location selected in 
+
+```{r}
+data <- data %>%
+  mutate(sel_cat3 = case_when(
+    selection_cat == "other" ~ "other",
+    selection_cat %in% c("WI_IWG", "WI_Maize") ~ "WI",
+    selection_cat %in% c("MN_IWG", "MN_Maize") ~ "MN",
+    selection_cat == "KS_IWG" ~ "KS",
+    selection_cat == "base_Maize" ~ "base_Maize",
+    selection_cat == "base_IWG" ~ "base_IWG"
+  ))
+
+data$sel_cat3 <- as.factor(data$sel_cat3)
+unique(data$sel_cat3)
+
+model18 <- lmer(First_Summer_ALF_Biomass_sqrt ~ sel_cat3*LOC + (1|Entry) + (1|LOC:Rep), data=data)
+aov_select_table <- anova(model18)
+table = flextable(data = aov_select_table %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
+table = flextable(data = aov_select_table %>%
+                    dplyr::select(NumDF, `Pr(>F)`) %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
+
+model19 <- clmm(Alfalfa_Regrowth ~ sel_cat3 * LOC + (1|Entry) + (1|LOC:Rep), data = data)
+summary(model19)
+aov_clmm_table <- Anova.clmm(model19, type = "III")
+
+table = flextable(data = aov_clmm_table %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+```
+
+```{r}
+model20 <- lmer(First_Summer_ALF_Biomass_sqrt ~ sel_cat2*LOC + sel_cat3*LOC + (1|Entry) + (1|LOC:Rep), data=data)
+aov_select_table <- anova(model20)
+table = flextable(data = aov_select_table %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
+table = flextable(data = aov_select_table %>%
+                    dplyr::select(NumDF, `Pr(>F)`) %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+
+
+model21 <- clmm(Alfalfa_Regrowth ~ sel_cat3*LOC + sel_cat2*LOC + (1|Entry) + (1|LOC:Rep), data = data)
+summary(model21)
+aov_clmm_table <- Anova.clmm(model19, type = "III")
+
+table = flextable(data = aov_clmm_table %>%
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
 ```
 
 ## Likelihood ratio test
@@ -282,9 +429,9 @@ bold(table, bold = TRUE, part = "header")
 ```{r}
 # determine whether being selected for intercropping is statistically significant
 # is their a significant difference between the two models in the liklihood of observing given data given normal distribution 
-model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selected_cat*LOC + (1 | Entry) + (1|LOC:Rep), data=data2, REML=FALSE) # alternate hypothesis : intercropping selection influences biomass
+model_Ha <- lmer(First_Summer_ALF_Biomass_sqrt ~ selection_cat*LOC + (1 | Entry) + (1|LOC:Rep), data=data, REML=FALSE) # alternate hypothesis : intercropping selection influences biomass
 
-model_H0 <- lmer(First_Summer_ALF_Biomass_sqrt ~ 1 + (1 | Entry) + (1|LOC:Rep), data=data2 , REML=FALSE) # null hypothesis : selection doesn't matter to biomass
+model_H0 <- lmer(First_Summer_ALF_Biomass_sqrt ~ 1 + (1 | Entry) + (1|LOC:Rep), data=data , REML=FALSE) # null hypothesis : selection doesn't matter to biomass
 
 anova(model_H0, model_Ha)
 # Pr(>Chisq) = 0.08768
@@ -300,9 +447,9 @@ LRT
 # Pr(>Chisq): p-value associated with likelihood ratio test
 ## p-value < 0.05 : reject null hypothesis. Alternative model better explains data
 
-emmeans(model_Ha, pairwise ~ selected_cat)
-plot(emmeans(model_Ha, ~ selected_cat))
-
+emmeans(model_Ha, pairwise ~ selection_cat)
+plot(emmeans(model_Ha, ~ selection_cat))
+anova(model_Ha)
 ```
 
 ```{r}
