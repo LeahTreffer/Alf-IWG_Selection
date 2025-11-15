@@ -35,6 +35,41 @@ Make sure data is normal
 data <- read_csv("data/Intermediate/data_shared_across_locations.csv")
 ```
 
+```{r}
+# rename all entries for presentable IDs
+# AVC1 = 
+# AVC2 = 
+# AVC3 = 
+# AVC4 = 
+# AVC5 = 
+# AVC6 = 
+# AVC7 = 
+# AVC9 = WI
+# AVC11 = 
+#AVC14 =
+
+# IWAF-L-MN1 = MN1_IWG
+# IWAF-H-MN1 = MN2_IWG
+# IWAF-L-KS1 = KS1_IWG
+# IWAF-H-KS2 = KS2_IWG
+# IWAF-L-WI1 = WI1_IWG
+# IWAF-H-WI1 = WI2_IWG
+# IWAF-L-Base = IWG_Base1
+# IWAF-H-Base = IWG_Base2
+
+# UMN5560 = 
+# UMN5561 = 
+# UMN4352 = 
+# UMN5553 = 
+# UMN4353 = 
+# UMN5555 = 
+# IAFAL-C3 = 
+# INTALF20 = 
+# Larry15 = Falcata1
+# NY1713 = 
+# NY19-45 = 
+```
+
 Box Plots
 
 ```{r boxplot}
