@@ -37,16 +37,18 @@ data <- read_csv("data/Intermediate/data_shared_across_locations.csv")
 
 ```{r}
 # rename all entries for presentable IDs
-# AVC1 = 
-# AVC2 = 
-# AVC3 = 
-# AVC4 = 
-# AVC5 = 
-# AVC6 = 
-# AVC7 = 
-# AVC9 = WI
-# AVC11 = 
-#AVC14 =
+# alternativly make all plots color coded by base/selection/other
+
+# AVC1 = Maize_base_WI1
+# AVC2 = Maize_base_WI2
+# AVC3 = Maize_base_WI3
+# AVC4 = Maize_base_WI4
+# AVC5 = Maize_base_WI5
+# AVC6 = WI1_Maize
+# AVC7 = WI2_Maize
+# AVC9 = WI3_Maize
+# AVC11 = WI4_Maize
+# AVC14 = WI5_Maize
 
 # IWAF-L-MN1 = MN1_IWG
 # IWAF-H-MN1 = MN2_IWG
@@ -57,14 +59,14 @@ data <- read_csv("data/Intermediate/data_shared_across_locations.csv")
 # IWAF-L-Base = IWG_Base1
 # IWAF-H-Base = IWG_Base2
 
-# UMN5560 = 
-# UMN5561 = 
+# UMN5560 = MN1_Maize
+# UMN5561 = MN2_Maize
 # UMN4352 = 
 # UMN5553 = 
 # UMN4353 = 
 # UMN5555 = 
-# IAFAL-C3 = 
-# INTALF20 = 
+# IAFAL-C3 = Falcata2
+# INTALF20 = WI6_Maize
 # Larry15 = Falcata1
 # NY1713 = 
 # NY19-45 = 
