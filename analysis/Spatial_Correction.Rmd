@@ -1,0 +1,217 @@
+---
+title: "Spatial_Correction"
+author: "Leah Treffer"
+date: "2025-11-23"
+output: html_document
+---
+
+
+```{r include=FALSE}
+library(tidyverse)
+#install.packages("here")
+library(here)
+library(multcompView)
+library(lmerTest)
+library(lme4)
+library(lmtest)
+library("PerformanceAnalytics")
+library(dplyr)
+library(broom.mixed)
+library(emmeans)
+library(metan)
+library(purrr)
+library(tidyr)
+#install.packages("lsmeans")
+library("multcomp")
+install.packages('sommer')
+library(sommer)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = here::here())
+```
+
+```{r}
+data <- read.csv('data/Intermediate/data_shared_across_locations_transformed.csv')
+```
+
+```{r}
+data2 <- data %>%
+  mutate(selected_cat = as.factor(case_when(
+    selected == "selected" ~ "selected",
+    selected == "base" ~ "base",
+    TRUE ~ "other"
+  )))%>%
+  mutate(selected_cat2 = as.factor(case_when(
+    selection_location == "WI" ~ "selectWI",
+    selection_location == "KS" ~ "select",
+    selection_location == "MN" ~ "select",
+    selected == "base" ~ "base",
+    TRUE ~ "other"
+  )))%>%
+  mutate(trial = as.character(case_when(
+    LOC == "KS" ~ "A",
+    LOC == "WI" ~ "B", 
+    LOC == "NY" ~ "C"
+  )))
+```
+
+```{r}
+data2 <- data2 |>
+  dplyr::group_by(trial) |>
+  dplyr::mutate(
+    Row2 = as.integer(factor(Row)),
+    Col2 = as.integer(factor(Col))
+  ) |>
+  ungroup()
+```
+
+```{r}
+data2$LOC <- as.factor(data2$LOC)
+data2$Entry <- as.factor(data2$Entry)
+data2$Rep <- as.factor(data2$Rep)
+data2$R <- as.factor(data2$Row)
+data2$C <- as.factor(data2$Col)
+data2$selected <- as.factor(data2$selected)
+data2$selection_location <- as.factor(data2$selection_location)
+data2$selected_type <- as.factor(data2$selected_type)
+data2$selected_cat <- as.factor(data2$selected_cat)
+data2$selected_cat2 <- as.factor(data2$selected_cat2)
+data2$trial <- as.character(data2$trial)
+data2$Row2 <- as.numeric(data2$Row2)
+data2$Col2 <- as.numeric(data2$Col2)
+```
+
+```{r}
+# lmer model : model <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + (1|LOC:Rep), data=data)
+
+# SOMMER MODEL
+mix <- mmes(First_Summer_ALF_Biomass_sqrt~Entry,
+            random=~ R + C +
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+summary(mix)$varcomp
+# fixed effect estimates
+summary(mix)$beta
+# works but missing replicate and interaction 
+```
+
+```{r}
+mix2 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry*LOC,
+            random=~ R + C +
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+summary(mix2)
+# does not work
+# warning: solve(): system is singular; attempting approx solution
+# Error in h(simpleError(msg, call)) : error in evaluating the argument 'object' in selecting a method for function 'summary': object 'mix2' not found
+```
+
+```{r}
+mix3 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry,
+            random=~ R + C + Rep +
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+summary(mix3)
+# works but missing interaction 
+```
+
+
+
+
+
+
+
+
+```{r}
+Estimates <- summary(mix)$beta %>%
+  rownames_to_column(var = "Entry")
+```
+
+```{r}
+data3 <- merge(data2, Estimates[,c("Entry", "Estimate")], by = "Entry")
+```
+
+
+
+```{r}
+mix <- mmes(First_Summer_ALF_Biomass_sqrt~Entry*LOC,
+            random=~ R + C + Rep + 
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+summary(mix)
+# fixed effect estimates
+summary(mix)$beta
+
+mix2 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry*LOC,
+            random= ~rep2,
+            rcov=~units, verbose=FALSE,
+            data=data2)
+
+mix <- mmes(First_Summer_ALF_Biomass_sqrt~Entry,
+            random=~ R + C + Rep + 
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+
+```
+
+
+```{r}
+# Is there a Significant Difference Among Entries
+# Entries as random effect
+mA <- mmes(First_Summer_ALF_Biomass_sqrt~LOC,
+            random=~ Entry + R + C + Rep + 
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+# Null model
+m0 <- mmes(First_Summer_ALF_Biomass_sqrt~LOC,
+            random=~ R + C + Rep + 
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+
+anova(m0, mA)
+
+```
+
+```{r}
+# Is there a Significant Difference Among Entries
+# Entries as fixed effect
+mA <- mmes(First_Summer_ALF_Biomass_sqrt~Entry + LOC,
+            random=~ R + C + Rep + 
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+# Null model
+m0 <- mmes(First_Summer_ALF_Biomass_sqrt~LOC,
+            random=~ R + C + Rep + 
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+
+anova(m0, mA)
+
+```
+
+```{r}
+# Is there a Significant Difference Among Locations
+mA <- mmes(First_Summer_ALF_Biomass_sqrt~Entry*LOC,
+            random=~  R + C + Rep + 
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+m0 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry + LOC,
+            random=~  R + C + Rep + 
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+anova(m0, mA)
+```
+
+

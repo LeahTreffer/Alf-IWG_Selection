@@ -213,7 +213,7 @@ data_model$LOCserp <- paste0(data_model$LOC,"_",data_model$serpentine)
 data <- merge(data, data_model[,c("LOCserp", "First_Summer_ALF_Height")], by="LOCserp", all.x = TRUE)
 
 # make data frame of normal values
-data2 <- data[,c('LOC', 'Entry', 'Rep', 'selected', 'selection_location', 'selected_type', 'First_Summer_ALF_Height', 'First_Summer_IWG_Height_log', 'First_Summer_Maturity', 'First_Yr_Regrowth_Vigor', 'First_Summer_ALF_Biomass_sqrt', 'First_Summer_IWG_Biomass_log', 'First_Summer_Lodging')]
+data2 <- data[,c('LOC', 'Entry', 'Rep', 'Row', 'Col', 'Row2', 'Col2', 'serpentine', 'selected', 'selection_location', 'selected_type', 'First_Summer_ALF_Height', 'First_Summer_IWG_Height_log', 'First_Summer_Maturity', 'First_Yr_Regrowth_Vigor', 'First_Summer_ALF_Biomass_sqrt', 'First_Summer_IWG_Biomass_log', 'First_Summer_Lodging')]
 ```
 
 Correlation 
