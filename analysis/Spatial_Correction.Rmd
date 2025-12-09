@@ -8,7 +8,7 @@ output: html_document
 
 ```{r include=FALSE}
 library(tidyverse)
-#install.packages("here")
+install.packages("here")
 library(here)
 library(multcompView)
 library(lmerTest)
@@ -21,7 +21,7 @@ library(emmeans)
 library(metan)
 library(purrr)
 library(tidyr)
-#install.packages("lsmeans")
+install.packages("lsmeans")
 library("multcomp")
 install.packages('sommer')
 library(sommer)
@@ -57,13 +57,13 @@ data2 <- data %>%
 ```
 
 ```{r}
-data2 <- data2 |>
-  dplyr::group_by(trial) |>
-  dplyr::mutate(
-    Row2 = as.integer(factor(Row)),
-    Col2 = as.integer(factor(Col))
-  ) |>
-  ungroup()
+#data2 <- data2 |>
+#  dplyr::group_by(trial) |>
+#  dplyr::mutate(
+#    Row2 = as.integer(factor(Row)),
+#    Col2 = as.integer(factor(Col))
+#  ) |>
+#  ungroup()
 ```
 
 ```{r}
@@ -98,7 +98,7 @@ summary(mix)$beta
 ```
 
 ```{r}
-mix2 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry*LOC,
+mix2 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry:LOC,
             random=~ R + C +
               spl2Dc(Row2, Col2, at.var = trial),
             rcov=~units, verbose=FALSE,
@@ -106,7 +106,7 @@ mix2 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry*LOC,
 summary(mix2)
 # does not work
 # warning: solve(): system is singular; attempting approx solution
-# Error in h(simpleError(msg, call)) : error in evaluating the argument 'object' in selecting a method for function 'summary': object 'mix2' not found
+# Error: addition: incompatible matrix dimensions: 87x87 and 268x268
 ```
 
 ```{r}
@@ -124,7 +124,18 @@ summary(mix3)
 
 
 
-
+```{r}
+# SOMMER MODEL
+mix <- mmes(First_Summer_ALF_Biomass_sqrt~1,
+            random=~ Entry:LOC + R + C +
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+summary(mix)
+summary(mix)$varcomp
+# fixed effect estimates
+summary(mix)$beta
+```
 
 ```{r}
 Estimates <- summary(mix)$beta %>%
