@@ -5,6 +5,7 @@ date: "2025-11-23"
 output: html_document
 ---
 
+Add AIC
 
 ```{r include=FALSE}
 library(tidyverse)
@@ -84,8 +85,36 @@ data2$Col2 <- as.numeric(data2$Col2)
 
 ```{r}
 # lmer model : model <- lmer(First_Summer_ALF_Biomass_sqrt ~ Entry*LOC + (1|LOC:Rep), data=data)
+# as a fixed effect, estimates the change in biomass associated with that Entry, that location, and the GxE
+# If changed to a random effect, estimates predicted biomass of the entry
 
 # SOMMER MODEL
+mix2 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry:LOC,
+            random=~ R + C +
+            random=~ spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+summary(mix2)
+# does not work
+# warning: solve(): system is singular; attempting approx solution
+# Error: addition: incompatible matrix dimensions: 87x87 and 268x268
+```
+
+R and C unique by trial 
+try without R and C
+I think that an entry must be present in each location 
+
+```{r}
+mix2 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry:LOC,
+            random=~ spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+summary(mix2)
+#warning: solve(): system is singular; attempting approx solution
+#Error: addition: incompatible matrix dimensions: 88x88 and 268x268
+```
+
+```{r}
 mix <- mmes(First_Summer_ALF_Biomass_sqrt~Entry,
             random=~ R + C +
               spl2Dc(Row2, Col2, at.var = trial),
@@ -95,29 +124,147 @@ summary(mix)$varcomp
 # fixed effect estimates
 summary(mix)$beta
 # works but missing replicate and interaction 
-```
 
-```{r}
-mix2 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry:LOC,
+Null <- mmes(First_Summer_ALF_Biomass_sqrt~1,
             random=~ R + C +
               spl2Dc(Row2, Col2, at.var = trial),
             rcov=~units, verbose=FALSE,
             data=data2)
-summary(mix2)
-# does not work
-# warning: solve(): system is singular; attempting approx solution
-# Error: addition: incompatible matrix dimensions: 87x87 and 268x268
+summary(Null)$beta
+
+# LRT for entry
+ll_full <- mix$llik[1, ncol(mix$llik)]
+ll_null <- Null$llik[1, ncol(Null$llik)]
+LR <- 2 * (ll_full - ll_null)
+df <- nlevels(data2$Entry) - 1
+pchisq(LR, df = df, lower.tail = FALSE)
+rm(mix,Null,ll_full,ll_null,LR,df)
 ```
 
 ```{r}
 mix3 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry,
-            random=~ R + C + Rep +
-              spl2Dc(Row2, Col2, at.var = trial),
+            random=~spl2Dc(Row2, Col2, at.var = trial),
             rcov=~units, verbose=FALSE,
             data=data2)
 summary(mix3)
 # works but missing interaction 
+
+Null <- mmes(First_Summer_ALF_Biomass_sqrt~1,
+            random=~spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=data2)
+summary(Null)$beta
+
+# LRT for entry
+ll_full <- mix3$llik[1, ncol(mix3$llik)]
+ll_null <- Null$llik[1, ncol(Null$llik)]
+LR <- 2 * (ll_full - ll_null)
+df <- nlevels(data2$Entry) - 1
+pchisq(LR, df = df, lower.tail = FALSE)
+rm(mix3,Null,ll_full,ll_null,LR,df)
 ```
+
+
+
+
+# spatial within location
+
+```{r}
+newyork <- data2[data2$LOC == "NY",]
+newyork$Entry <- droplevels(newyork$Entry) # NY doesn't have IWAF-H-KS2
+
+mix2 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry,
+            random=~ R + C +
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=newyork)
+summary(mix2)
+# varience component
+summary(mix2)$varcomp
+# fixed effect estimates
+summary(mix2)$beta
+
+Null <- mmes(First_Summer_ALF_Biomass_sqrt~1,
+            random=~ R + C +
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=newyork)
+summary(Null)$beta
+
+# LRT for entry
+ll_full <- mix2$llik[1, ncol(mix2$llik)]
+ll_null <- Null$llik[1, ncol(Null$llik)]
+LR <- 2 * (ll_full - ll_null)
+df <- nlevels(newyork$Entry) - 1
+pchisq(LR, df = df, lower.tail = FALSE)
+rm(mix2,Null,ll_full,ll_null,LR,df)
+```
+
+```{r}
+wisconsin <- data2[data2$LOC == "WI",]
+wisconsin$Entry <- droplevels(wisconsin$Entry) # WI has fewer entries than other locations
+
+mix2 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry,
+            random=~ R + C +
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=wisconsin)
+summary(mix2)
+# varience component
+summary(mix2)$varcomp
+# fixed effect estimates
+summary(mix2)$beta
+
+Null <- mmes(First_Summer_ALF_Biomass_sqrt~1,
+            random=~ R + C +
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=wisconsin)
+summary(Null)$beta
+
+# LRT for entry
+ll_full <- mix2$llik[1, ncol(mix2$llik)]
+ll_null <- Null$llik[1, ncol(Null$llik)]
+LR <- 2 * (ll_full - ll_null)
+df <- nlevels(wisconsin$Entry) - 1
+pchisq(LR, df = df, lower.tail = FALSE)
+rm(mix2,Null,ll_full,ll_null,LR,df)
+```
+
+```{r}
+kansas <- data2[data2$LOC == "KS",]
+kansas$Entry <- droplevels(kansas$Entry) # drop unused levels to fit matrix
+kansas$R <- droplevels(kansas$R)
+kansas$C <- droplevels(kansas$C)
+
+mix2 <- mmes(First_Summer_ALF_Biomass_sqrt~Entry,
+            random=~ R + C +
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=kansas)
+summary(mix2)
+# varience component
+summary(mix2)$varcomp
+# fixed effect estimates
+summary(mix2)$beta
+
+Null <- mmes(First_Summer_ALF_Biomass_sqrt~1,
+            random=~ R + C +
+              spl2Dc(Row2, Col2, at.var = trial),
+            rcov=~units, verbose=FALSE,
+            data=kansas)
+summary(Null)$beta
+
+# LRT for entry
+ll_full <- mix2$llik[1, ncol(mix2$llik)]
+ll_null <- Null$llik[1, ncol(Null$llik)]
+LR <- 2 * (ll_full - ll_null)
+df <- nlevels(kansas$Entry) - 1
+pchisq(LR, df = df, lower.tail = FALSE)
+rm(mix2,Null,ll_full,ll_null,LR,df)
+```
+
+
 
 
 
@@ -132,9 +279,7 @@ mix <- mmes(First_Summer_ALF_Biomass_sqrt~1,
             rcov=~units, verbose=FALSE,
             data=data2)
 summary(mix)
-summary(mix)$varcomp
-# fixed effect estimates
-summary(mix)$beta
+
 ```
 
 ```{r}
