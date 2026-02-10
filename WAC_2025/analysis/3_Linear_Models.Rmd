@@ -23,6 +23,7 @@ library(kableExtra)
 library(tibble)
 library(flextable)
 library(RVAideMemoire)
+library(multcomp)
 ```
 
 ```{r setup, include=FALSE}
@@ -114,8 +115,8 @@ anova(model2)
 # are entries significantly different in first year vigor
 # cumulative link mixed model (CLMM) for ordered but not continuous data (Ordinal categorical response)
 data$Alfalfa_Regrowth <- ordered(data$Alfalfa_Regrowth, levels = c(0,1,2,3,4,5)) # set as ordinal and define categories 
-data$Alfalfa_Regrowth <- ordered(data$First_Yr_Regrowth_Vigor, levels = c(0,1,2,3,4,5)) # set as ordinal and define categories 
-model3 <- clmm(Alfalfa_Regrowth ~ Entry * LOC + (1|LOC:Rep), data=data)
+data$Alfalfa_Regrowth <- ordered(data$First_Yr_Regrowth_Vigor2, levels = c(0,1,2,3,4,5)) # set as ordinal and define categories 
+model3 <- clmm(Alfalfa_Regrowth ~ Entry + (1|LOC:Rep), data=data)
 aov_clmm_talbe <- Anova.clmm(model3, type = "II")
 
 table = flextable(data = aov_clmm_talbe %>%
@@ -124,7 +125,7 @@ table = flextable(data = aov_clmm_talbe %>%
 bold(table, bold = TRUE, part = "header")
 
 # Which entries differ significantly within each location?
-emm_loc <- emmeans(model3, list(pairwise ~ Entry | LOC), adjust = "tukey")
+emm_loc <- emmeans(model3, list(pairwise ~ Entry), adjust = "tukey")
 pairs_loc <- as.data.frame(emm_loc[["pairwise differences of Entry"]]) # Extract pairwise results table
 # Keep only significant comparisons (p < 0.05)
 sig_pairs_loc <- pairs_loc %>%
@@ -179,6 +180,84 @@ data %>%
        x = "Entry",
        y = "Regrowth Vigor Rating")
 # save output/regrowth_entry_yr1S_dotplot2
+
+data2 <- data%>%
+  filter(LOC %in% c("NY", "WI")) %>%
+  droplevels() %>%
+  filter(!str_detect(Entry, "^(UMN|NY)"))
+model3 <- clmm(Alfalfa_Regrowth ~ Entry*LOC + (1|LOC:Rep), data=data2)
+aov_clmm_talbe <- Anova.clmm(model3, type = "II")
+table = flextable(data = aov_clmm_talbe %>%
+      mutate(`Pr(>Chisq)` = formatC(`Pr(>Chisq)`, format = "e", digits = 2)) %>% 
+                    rownames_to_column(" ")) 
+bold(table, bold = TRUE, part = "header")
+# Which entries differ significantly within each location?
+emm_loc <- emmeans(model3, list(pairwise ~ Entry|LOC), adjust = "tukey")
+# Hessian is numerically singular: parameters are not uniquely determined
+# variance–covariance matrix of fixed effects cannot be computed
+
+model_NY <- clmm(
+  Alfalfa_Regrowth ~ Entry + (1 | Rep),
+  data = filter(data2, LOC == "NY")
+)
+emm_loc <- emmeans(model_NY, list(pairwise ~ Entry), adjust = "tukey")
+pairs_loc <- as.data.frame(emm_loc[["pairwise differences of Entry"]]) # Extract pairwise results table
+sig_pairs_loc <- pairs_loc %>%
+  filter(p.value < 0.05) %>%
+  arrange(p.value)
+kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
+  kable_classic(full_width = F, html_font = "Helvetica")
+
+model_WI <- clmm(
+  Alfalfa_Regrowth ~ Entry + (1 | Rep),
+  data = filter(data2, LOC == "WI")
+)
+emm_loc <- emmeans(model_WI, list(pairwise ~ Entry), adjust = "tukey")
+# Hessian is numerically singular: parameters are not uniquely determined
+# variance–covariance matrix of fixed effects cannot be computed
+#pairs_loc <- as.data.frame(emm_loc[["pairwise differences of Entry"]]) # Extract pairwise results table
+#sig_pairs_loc <- pairs_loc %>%
+#  filter(p.value < 0.05) %>%
+#  arrange(p.value)
+#kbl(sig_pairs_loc, digits = 5, caption = "Significant pairwise comparisons (Tukey-adjusted)") %>%
+#  kable_classic(full_width = F, html_font = "Helvetica")
+
+custom_letters <- c("a", "b", "c", "d", "e", "f", "g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z")
+emm_ny <- emmeans(model_NY, list(pairwise ~ Entry), adjust = "tukey")
+cld_ny <- cld(emm_ny, Letters=custom_letters) # Create compact letter display
+rownames(cld_ny) <- NULL
+cld_ny<- cld_ny %>%
+  select(Entry, .group)
+cld_ny  |> 
+  data.frame() |> 
+  kbl(align = "c") |> 
+  kable_paper(full_width = F) |> 
+  column_spec(1, bold = T)
+
+data2 %>%
+  filter(LOC == "NY")%>%
+  group_by(Entry) %>%
+  mutate(Alfalfa_Regrowth2 = as.numeric(Alfalfa_Regrowth))%>%
+  summarise(
+    count = n(),
+    mean = mean(Alfalfa_Regrowth2,na.rm=TRUE),
+    stddev = sd(Alfalfa_Regrowth2, na.rm=TRUE),
+    meansd_l = mean - stddev,
+    meansd_u = mean + stddev
+  )%>%
+  left_join(cld_ny, by = "Entry") %>%
+  arrange(desc(mean))%>%
+  ggplot(aes(x = reorder(Entry, mean), y=mean)) + 
+        geom_point()+
+  geom_errorbar(aes(ymin = meansd_l, ymax = meansd_u), width=0.1)+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Alfalfa Regrowth NY",
+       x = "Entry",
+       y = "Regrowth Vigor Rating")+
+  geom_text(aes(x = Entry, label = .group),
+            color = "black", vjust = 0, hjust = 0)
+# save output/regrowth_yr1S
 ```
 
 ```{r}
