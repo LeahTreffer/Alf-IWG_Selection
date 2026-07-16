@@ -103,7 +103,7 @@ label_df <- data_inter %>%
   summarise(y = max(`Alfalfa_FallBiomass.g.`, na.rm = TRUE)) %>%
   left_join(letters_df, by = "Entry")%>%
   mutate(.group = trimws(.group)) %>%      
-  arrange(.group, desc(y))                
+  arrange(.group, y)       # desc(y))            
 entry_order <- label_df$Entry
 data_inter <- data_inter %>%
   mutate(Entry = factor(Entry, levels = entry_order))
@@ -113,7 +113,7 @@ ggplot(data_inter, aes(x = Entry, y = `Alfalfa_FallBiomass.g.`)) +
   geom_boxplot(fill = "#661100", color = "black", alpha = 0.6, outlier.shape = NA) +
   geom_jitter(width = 0.15, size = 2, alpha = 0.6, color = "black") +
   labs(x = NULL,
-       y = "Fall biomass (g m⁻¹)",
+       y = "Fall biomass (g / m2)",
        title = "2025 Fall biomass of alfalfa entries") +
   theme_classic(base_size = 14) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
@@ -308,3 +308,135 @@ x = "",
 y = "Rank (1 = highest biomass)"
 )
 
+
+
+
+data_biomass <- read.csv(here::here("data","Intermediate", "ALF_Biomass_current.csv"))
+data_biomass2 <- read.csv(here::here("data","Intermediate", "ALF_Biomass_core.csv"))
+
+
+data_biomass$LOC <- as.factor(data_biomass$LOC)
+data_biomass$YearCode <- as.factor(data_biomass$YearCode)
+data_biomass$Harvest <- as.factor(data_biomass$Harvest)
+data_biomass$Ent <- as.character(data_biomass$Ent)
+data_biomass$Entry <- as.character(data_biomass$Entry)
+data_biomass$Block <- as.factor(data_biomass$block)
+data_biomass$treatment <- as.factor(data_biomass$treatment)
+data_biomass$Serpentine <- as.character(data_biomass$Serpentine)
+data_biomass$Selection <- as.factor(data_biomass$Selection)
+data_biomass$Background <- as.factor(data_biomass$Background)
+data_biomass$BasicGroups <- as.factor(data_biomass$BasicGroups)
+data_biomass$Biomass <- as.numeric(data_biomass$Biomass)
+
+data_biomass2$LOC <- as.factor(data_biomass2$LOC)
+data_biomass2$YearCode <- as.factor(data_biomass2$YearCode)
+data_biomass2$Harvest <- as.factor(data_biomass2$Harvest)
+data_biomass2$Ent <- as.character(data_biomass2$Ent)
+data_biomass2$Entry <- as.character(data_biomass2$Entry)
+data_biomass2$Block <- as.factor(data_biomass2$block)
+data_biomass2$treatment <- as.factor(data_biomass2$treatment)
+data_biomass2$Serpentine <- as.character(data_biomass2$Serpentine)
+data_biomass2$Selection <- as.factor(data_biomass2$Selection)
+data_biomass2$Background <- as.factor(data_biomass2$Background)
+data_biomass2$BasicGroups <- as.factor(data_biomass2$BasicGroups)
+data_biomass2$Biomass <- as.numeric(data_biomass2$Biomass)
+
+data_biomass_inter <- subset(data_biomass, treatment == "intercrop")
+data_biomass_inter2 <- subset(data_biomass2, treatment == "intercrop")
+
+Summer_biomass <- data_biomass_inter[data_biomass_inter$Harvest == 'Summer', ]
+Fall_biomass <- data_biomass_inter[data_biomass_inter$Harvest == 'Fall', ]
+Spring_biomass <- data_biomass_inter[data_biomass_inter$Harvest == 'Spring', ]
+
+#estimate how much of the biomass variation is attributable to differences among entries
+#model_EntBms <- lmer(Biomass ~ 1 + (1|Block:LOC)+(1|Entry), data=data_biomass_inter)
+
+## whether entries differ ##
+model_BioSmr <- lmer(Biomass ~ Entry*LOC + (1|Block:LOC), data=Summer_biomass) # WI, NY, KS
+anova(model_BioSmr)
+# Locations are different 
+
+model_BioFll <- lmer(Biomass ~ Entry*LOC + (1|Block:LOC), data=Fall_biomass) # WI, NY
+model_BioFll <- lmer(Biomass ~ Entry+LOC + (1|Block:LOC), data=Fall_biomass) # WI, NY
+anova(model_BioFll)
+#emm <- emmeans(model_BioFll, list(pairwise ~ Entry), adjust = "tukey")
+emm <- emmeans(model_BioFll, pairwise ~ Entry, adjust = "tukey")
+emm <- emmeans(model_BioFll, ~ Entry, adjust = "tukey")
+#pairs_df <- as.data.frame(emm[["pairwise differences of Entry"]]) # Extract pairwise results table
+pairs_df <- as.data.frame(emm[["emmeans"]]) # Extract pairwise results table
+sig_pairs <- pairs_df %>%
+  filter(p.value < 0.05) %>%
+  arrange(p.value)
+# Print nicely formatted table
+kbl(sig_pairs, digits = 5, caption = "Significant pairwise comparisons of Entry (Tukey-adjusted) <br> biomass ~ Entry*Location + (1|Location)") %>%
+  kable_classic(full_width = F, html_font = "Helvetica")
+cld_entry <- cld(
+  emm,
+  adjust = "tukey",
+  Letters = letters
+)
+letters_df <- as.data.frame(cld_entry) %>%
+  dplyr::select(Entry, .group)
+label_df <- Fall_biomass %>%
+  group_by(Entry) %>%
+  summarise(y = max(Biomass, na.rm = TRUE)) %>%
+  left_join(letters_df, by = "Entry")%>%
+  mutate(.group = trimws(.group)) %>%      
+  arrange(.group, y)       # desc(y))            
+entry_order <- label_df$Entry
+Fall_biomass <- Fall_biomass %>%
+  mutate(Entry = factor(Entry, levels = entry_order))
+label_df <- label_df %>%
+  mutate(Entry = factor(Entry, levels = entry_order))
+ggplot(Fall_biomass, aes(x = Entry, y = Biomass)) +
+  geom_boxplot(fill = "#661100", color = "black", alpha = 0.6, outlier.shape = NA) +
+  geom_jitter(width = 0.15, size = 2, alpha = 0.6, color = "black") +
+  labs(x = NULL,
+       y = "Fall biomass (g / m2)",
+       title = "Fall biomass of alfalfa entries (Wisconsin and New York Year 1)") +
+  theme_classic(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        plot.title = element_text(face = "bold"))+
+  geom_text(data = label_df, aes(x = Entry, y = y + 5, label = .group), inherit.aes = FALSE, size = 5)
+
+
+
+model_BioSpr <- lmer(Biomass ~ Entry + (1|Block), data=Spring_biomass) # WI
+anova(model_BioSpr)
+# anova showe sig diff by entry, but Tukey HSD is more conservative and dosn't show any sig contrasts/ pairwise comparisons
+emm <- emmeans(model_BioSpr, pairwise ~ Entry, adjust = "tukey")
+pairs_df <- as.data.frame(emm[["contrasts"]]) # Extract pairwise results table
+sig_pairs <- pairs_df %>%
+  filter(p.value < 0.05) %>%
+  arrange(p.value)
+# Print nicely formatted table
+kbl(sig_pairs, digits = 5, caption = "Significant pairwise comparisons of Entry (Tukey-adjusted) <br> biomass ~ Entry*Location + (1|Location)") %>%
+  kable_classic(full_width = F, html_font = "Helvetica")
+cld_entry <- cld(
+  emm,
+  adjust = "tukey",
+  Letters = letters
+)
+letters_df <- as.data.frame(cld_entry) %>%
+  dplyr::select(Entry, .group)
+label_df <- Spring_biomass %>%
+  group_by(Entry) %>%
+  summarise(y = max(Biomass, na.rm = TRUE)) %>%
+  left_join(letters_df, by = "Entry")%>%
+  mutate(.group = trimws(.group)) %>%      
+  arrange(.group, y)       # desc(y))            
+entry_order <- label_df$Entry
+Spring_biomass <- Spring_biomass %>%
+  mutate(Entry = factor(Entry, levels = entry_order))
+label_df <- label_df %>%
+  mutate(Entry = factor(Entry, levels = entry_order))
+ggplot(Spring_biomass, aes(x = Entry, y = Biomass)) +
+  geom_boxplot(fill = "#661100", color = "black", alpha = 0.6, outlier.shape = NA) +
+  geom_jitter(width = 0.15, size = 2, alpha = 0.6, color = "black") +
+  labs(x = NULL,
+       y = "Spring biomass (g / m2)",
+       title = "Spring biomass of alfalfa entries (Wisconsin Year 2)") +
+  theme_classic(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        plot.title = element_text(face = "bold"))+
+  geom_text(data = label_df, aes(x = Entry, y = y + 5, label = .group), inherit.aes = FALSE, size = 5)
