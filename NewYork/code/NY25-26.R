@@ -38,21 +38,46 @@ data$treatment <- as.factor(data$treatment)
 data$Serpentine <- as.character(data$Serpentine)
 
 data_inter <- subset(data, treatment == "intercrop")
+
+NY <- subset(NY, Harvest != "Spring")
+data_inter <- subset(NY, treatment == "intercrop")
+ggplot(data_inter, aes(x = Entry, y = Alfalfa_Biomass_kgha, colour = Harvest)) +
+  geom_boxplot(na.rm = TRUE) +
+  facet_grid(~ YEAR) +  # one plot per location stacked vertically
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Alfalfa biomass by Entry across Locations",
+       x = "Entry",
+       y = "Biomass (kg/ha)")
+ggplot(data_inter, aes(x = Entry, y = Alfalfa_Biomass_kgha, colour = YearCode)) +
+  geom_boxplot(na.rm = TRUE) +
+  facet_grid(~ Harvest) +  # one plot per location stacked vertically
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Alfalfa biomass by Entry across Locations",
+       x = "Entry",
+       y = "Biomass (kg/ha)")
+
+data_inter$Time <- as.factor(paste0(data_inter$YEAR,"_",data_inter$Harvest))
+
   
 model_SprVigor <- lmer(Alfalfa_SpringVigor ~ Entry*YearCode + (1|Block)+(1|Serpentine:Block), data=data_inter)
+model_SprVigor <- lmer(Alfalfa_Vigor ~ Entry*Time + (1|Block)+(1|Serpentine:Block), data=data_inter)
 aov.table <- anova(model_SprVigor)
 
 #estimate how much of the biomass variation is attributable to differences among entries
 model_SmrBms <- lmer(`Alfalfa_Summer_Biomass.g.` ~ 1 + (1|Block)+(1|Entry), data=data_inter)
+model_SmrBms <- lmer(Alfalfa_Biomass_kgha ~ 1 + (1|Block)+(1|Entry), data=data_inter)
 
 ## whether entries differ ##
 # Alfalfa_Summer_Biomass.g.
 model_SmrBms <- lmer(`Alfalfa_Summer_Biomass.g.` ~ Entry + (1|Block), data=data_inter)
+model_SmrBms <- lmer(Alfalfa_Biomass_kgha ~ Entry * Time + (1|Block), data=data_inter)
 anova(model_SmrBms)
 emm <- emmeans(model_SmrBms, ~ Entry, adjust = "tukey")
 pairs_df <- as.data.frame(emm, adjust = "tukey") # Extract pairwise results table
 sig_pairs <- pairs_df %>%
-  filter(p.value < 0.07) %>%
+  filter(p.value < 0.05) %>%
   arrange(p.value)
 # Print nicely formatted table
 kbl(sig_pairs, digits = 5, caption = "Significant pairwise comparisons of Entry (Tukey-adjusted) <br> biomass ~ Entry*Location + (1|Location)") %>%

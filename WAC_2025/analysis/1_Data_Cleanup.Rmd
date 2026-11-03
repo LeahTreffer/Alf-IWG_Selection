@@ -38,7 +38,9 @@ downloaded csv in "~/GitHub/Alf-IWG_Selection/data"
 
 csv COMBINED is a combination of the traits that are shared by at least 2 locations
 
-csv 2025_NY_MG2 and 2024_NY_MG2 are the data from the NY location
+csv 2025_NY_MG2 and 2024_NY_MG2 are the data from the NY location by year
+
+csv NY_MG2 is data from the NY location for all harvest timepoints
 
 
 ```{r load_data}
@@ -47,6 +49,7 @@ combined <- read_csv("data/Alf-IWG alfalfa selection MASTER - SHARED.csv")
 NY24 <- read.csv("data/Alf-IWG alfalfa selection MASTER - 2024_NY_MG2.csv")
 NY25 <- read.csv("data/Alf-IWG alfalfa selection MASTER - 2025_NY_MG2.csv")
 #NY <- merge()
+NY <- read.csv("data/Alf-IWG alfalfa selection MASTER - NY_MG2.csv")
 ```
 
 ```{r}
@@ -85,6 +88,10 @@ combined$First_Summer_IWG_Biomass <- combined$First_Summer_IWG_Biomass_Quadrat_g
 combined$First_Summer_Weed_Biomass <- combined$First_Summer_Weed_Biomass_Quadrat_g * 0.001 * 10621.67 * 100
 combined$First_Summer_Grain_Biomass <- combined$First_Summer_Grain_Biomass_Quadrat_g * 0.001 * 10621.67 * 100
 
+NY$Alfalfa_Biomass_kgha <- NY$`Alfalfa_Biomass.g.` * 0.001 * 10621.67 * 100
+NY$Weed_Biomass_kgha <- NY$`Weed_Biomass.g.` * 0.001 * 10621.67 * 100
+NY$IWG_Biomass_kgha <- NY$`IWG_Biomass.g.` * 0.001 * 10621.67 * 100
+NY$Grain_Threshed_kgha <- NY$`Grain_Threshed.g.` * 0.001 * 10621.67 * 100
 ```
 
 ```{r}
