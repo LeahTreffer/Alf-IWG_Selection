@@ -15,7 +15,7 @@ library(ggplot2)
 library(multcompView)
 library(lmerTest)
 library(kableExtra)
-library(Kendall)
+library(Kendall) # install.packages("Kendall")
 library(lme4)
 library("PerformanceAnalytics")
 library(dplyr)
@@ -89,7 +89,7 @@ anova(model_FlBms)
 emm <- emmeans(model_FlBms, list(pairwise ~ Entry), adjust = "tukey")
 pairs_df <- as.data.frame(emm[["pairwise differences of Entry"]]) # Extract pairwise results table
 sig_pairs <- pairs_df %>%
-  filter(p.value < 0.07) %>%
+  filter(p.value < 0.05) %>%
   arrange(p.value)
 # Print nicely formatted table
 kbl(sig_pairs, digits = 5, caption = "Significant pairwise comparisons of Entry (Tukey-adjusted) <br> biomass ~ Entry*Location + (1|Location)") %>%
@@ -265,6 +265,8 @@ t.test(Alfalfa_FallBiomass.g. ~ Entry,
 t.test(Alfalfa_FallBiomass.g. ~ Entry,
        data = filter(data, Entry %in% c("IWAF-H-Base", "IWAF-H-WI1")),
        var.equal = TRUE)
+
+
 
 
 # Rank changes
